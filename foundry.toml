@@ -5,6 +5,9 @@ libs = ["lib"]
 metadata = true
 metadata_hash = "none"  # disable ipfs
 use_literal_content = true # use source code
+remappings = [
+    "@pythnetwork/entropy-sdk-solidity/=node_modules/@pythnetwork/entropy-sdk-solidity/"
+]
 
 # Monad Configuration
 eth-rpc-url="https://testnet-rpc.monad.xyz"
