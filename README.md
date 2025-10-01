@@ -1,266 +1,241 @@
-# MonadFlip - Coin Flip Game on Monad## Monad-flavored Foundry
+# Monad Coin Flip (MCF) 🎲
 
+A provably fair coin flip betting game built on Monad testnet using Pyth Entropy for true randomness.
 
+![Monad](https://img.shields.io/badge/Monad-Testnet-purple)
+![Solidity](https://img.shields.io/badge/Solidity-0.8.30-blue)
+![Foundry](https://img.shields.io/badge/Foundry-Latest-orange)
 
-MonadFlip is a decentralized coin flip gambling game built on the Monad blockchain, utilizing Pyth Entropy for provably fair random number generation.> [!NOTE]
+## 🎮 Overview
 
-> In this Foundry template, the default chain is `monadTestnet`. If you wish to change it, change the network in `foundry.toml`
+Monad Coin Flip is a decentralized betting game where users can bet MON (Monad's native token) on a coin flip. The game uses Pyth Entropy's commit-reveal scheme to ensure provably fair and unpredictable outcomes.
 
-## Features
+## ✨ Features
 
-<h4 align="center">
+- **🔒 Provably Fair**: Uses Pyth Entropy for true randomness - results cannot be predicted or manipulated
+- **💰 Fair Payouts**: Win 1.9x your bet (5% house fee)
+- **⚡ Fast**: Built on Monad for high-performance transactions
+- **🛡️ Secure**: Two-step commit-reveal process prevents frontrunning
+- **⏰ Timeout Protection**: Players can cancel and get refunds if reveal times out (1 hour)
+- **📊 Full History**: Complete game history tracking for all players
 
-- **Provably Fair Randomness**: Uses Pyth Entropy to generate cryptographically secure random numbers  <a href="https://docs.monad.xyz">Monad Documentation</a> | <a href="https://book.getfoundry.sh/">Foundry Documentation</a> |
+## 🚀 Deployed Contract
 
-- **Simple Coin Flip Game**: Players bet on HEADS or TAILS   <a href="https://github.com/monad-developers/foundry-monad/issues">Report Issue</a>
+- **Network**: Monad Testnet
+- **Contract Address**: `0x7E917915Cefc7f98d6d3cA07f21c4B950803D1dD`
+- **Explorer**: [View on Monad Explorer](https://testnet.monad.xyz/address/0x7E917915Cefc7f98d6d3cA07f21c4B950803D1dD)
 
-- **Configurable Fees**: Owner can set fee percentage (max 20%)</h4>
+## 📋 Contract Details
 
-- **Bet Limits**: Configurable minimum and maximum bet amounts
+### Configuration
+- **Min Bet**: 0.01 MON
+- **Max Bet**: 1 MON
+- **House Fee**: 5% on all bets
+- **Payout**: 1.9x for winners
+- **Entropy Provider**: Pyth Network
 
-- **House Protection**: Contract checks it has enough balance to pay winnings
+### Key Functions
 
-- **Event Logging**: All bets and results are logged for transparency**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+#### For Players
 
+```solidity
+// Place a bet (0 = Heads, 1 = Tails)
+function placeBet(uint8 _choice, bytes32 _userRandomness) external payable returns (uint256 gameId)
 
+// Reveal the result (anyone can call after Pyth provides randomness)
+function revealResult(uint256 _gameId, bytes32 _providerRevelation) external
 
-## How It WorksFoundry consists of:
+// Cancel game and get refund if reveal times out (after 1 hour)
+function cancelGame(uint256 _gameId) external
 
-
-
-1. **Place Bet**: Player calls `placeBet(CoinSide guess)` with their wager and guess (HEADS/TAILS)-   **Forge**: Ethereum testing framework (like Truffle, Hardhat, and DappTools).
-
-2. **Random Number Generation**: Contract requests random number from Pyth Entropy-   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions, and getting chain data.
-
-3. **Result Calculation**: Random number is converted to coin flip (even = HEADS, odd = TAILS)-   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-
-4. **Payout**: If player wins, they receive 2x their bet minus fees. If they lose, their bet is kept by the house.-   **Chisel**: Fast, utilitarian, and verbose Solidity REPL.
-
-
-
-## Contract Details## Documentation
-
-
-
-### Core Functionshttps://book.getfoundry.sh/
-
-
-
-- `placeBet(CoinSide guess)`: Place a bet on coin flip outcome## Usage
-
-- `calculatePayout(uint256 betAmount)`: Calculate payout after fees
-
-- `getBet(uint64 sequenceNumber)`: Get details of a specific bet### Build
-
-- `getPlayerBets(address player)`: Get all bet sequence numbers for a player
-
-```shell
-
-### Owner Functionsforge build
-
+// View game history
+function getPlayerGames(address _player) external view returns (uint256[] memory)
+function getGame(uint256 _gameId) external view returns (Game memory)
 ```
 
-- `setFeePercentage(uint256 _feePercentage)`: Set fee percentage (max 20%)
+#### For Owner
 
-- `setBetLimits(uint256 _minimumBet, uint256 _maximumBet)`: Set bet limits### Test
+```solidity
+// Withdraw accumulated fees
+function withdrawHouseFees(uint256 _amount) external onlyOwner
 
-- `withdrawFees(uint256 amount)`: Withdraw collected fees
+// Update betting limits
+function setMinBet(uint256 _minBet) external onlyOwner
+function setMaxBet(uint256 _maxBet) external onlyOwner
 
-- `addFunds()`: Add funds to ensure contract can pay winnings```shell
-
-- `transferOwnership(address newOwner)`: Transfer contract ownershipforge test
-
+// Emergency functions
+function emergencyWithdraw() external onlyOwner
+function transferOwnership(address _newOwner) external onlyOwner
 ```
 
-### Default Settings
+## 🎯 How It Works
 
-### Format
+1. **Player Places Bet**
+   - Player chooses heads (0) or tails (1)
+   - Sends MON with their bet + entropy fee
+   - Provides random bytes32 for commitment
+   - Contract requests randomness from Pyth Entropy
 
-- **Fee Percentage**: 10% (1000 basis points)
+2. **Randomness Generation**
+   - Pyth Entropy combines player's randomness with oracle's randomness
+   - Uses commit-reveal scheme for security
+   - Result is cryptographically verifiable
 
-- **Minimum Bet**: 0.001 ETH```shell
+3. **Result Reveal**
+   - Anyone can reveal the result using Pyth's revelation
+   - Contract determines win/loss
+   - Winner receives 1.9x payout automatically
+   - 5% fee collected for house
 
-- **Maximum Bet**: 10 ETHforge fmt
+4. **Safety Net**
+   - If reveal doesn't happen within 1 hour
+   - Player can cancel and get full refund
 
-```
-
-## Deployment
-
-### Gas Snapshots
+## 🛠️ Development
 
 ### Prerequisites
 
-```shell
+- [Foundry](https://book.getfoundry.sh/getting-started/installation)
+- Node.js (for frontend)
+- Git
 
-1. Install Foundry: https://getfoundry.sh/forge snapshot
-
-2. Install dependencies: `npm install````
-
-3. Set up environment variables in `.env`:
-
-   ```### Anvil
-
-   PRIVATE_KEY=your_private_key_here
-
-   ENTROPY_ADDRESS=pyth_entropy_contract_address_on_monad```shell
-
-   RPC_URL=monad_rpc_urlanvil
-
-   ``````
-
-
-
-### Deploy to Monad### Deploy to Monad Testnet
-
-
-
-```bashFirst, you need to create a keystore file. Do not forget to remember the password! You will need it to deploy your contract.
-
-# Compile contracts
-
-forge build```shell
-
-cast wallet import monad-deployer --private-key $(cast wallet new | grep 'Private key:' | awk '{print $3}')
-
-# Run tests```
-
-forge test
-
-After creating the keystore, you can read its address using:
-
-# Deploy to Monad testnet
-
-forge script script/DeployMonadFlip.s.sol:DeployMonadFlip --rpc-url $RPC_URL --broadcast --verify```shell
-
-```cast wallet address --account monad-deployer
-
-```
-
-## Testing
-
-The command above will create a keystore file named `monad-deployer` in the `~/.foundry/keystores` directory.
-
-The project includes comprehensive tests with a mock Entropy contract:
-
-Then, you can deploy your contract to the Monad Testnet using the keystore file you created.
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/monad-flip.git
+cd monad-flip
 
-# Run all tests```shell
-
-forge testforge create src/Counter.sol:Counter --account monad-deployer --broadcast
-
+# Install dependencies
+forge install
+npm install
 ```
 
-# Run tests with verbosity
+### Configuration
 
-forge test -vvv### Verify Contract
+Create a `.env` file:
 
+```env
+# Private key for deployment (with 0x prefix)
+PRIVATE_KEY=0xyour_private_key_here
 
+# Monad RPC URL
+RPC_URL=https://testnet-rpc.monad.xyz
 
-# Run specific test```shell
-
-forge test --match-test test_PlaceBetforge verify-contract \
-
-  <contract_address> \
-
-# Run fuzz tests  src/Counter.sol:Counter \
-
-forge test --match-test testFuzz  --chain 10143 \
-
-```  --verifier sourcify \
-
-  --verifier-url https://sourcify-api-monad.blockvision.org
-
-## Security Considerations```
-
-
-
-### Production Considerations### Cast
-
-[Cast reference](https://book.getfoundry.sh/cast/)
-
-1. **User Randomness**: The current implementation uses predictable values for user randomness. In production, implement proper user-provided randomness.```shell
-
-cast <subcommand>
-
-2. **MEV Protection**: Consider implementing commit-reveal schemes or other MEV protection mechanisms.```
-
-
-
-3. **Circuit Breakers**: Add emergency pause functionality for security incidents.### Help
-
-
-
-4. **Upgradability**: Consider using proxy patterns for contract upgrades.```shell
-
-forge --help
-
-### Auditinganvil --help
-
-cast --help
-
-This contract should be thoroughly audited before mainnet deployment, focusing on:```
-
-- Random number generation security
-
-- Economic attack vectors
-
-- Access control mechanisms## FAQ
-
-- Edge cases in betting logic
-
-### Error: `Error: server returned an error response: error code -32603: Signer had insufficient balance`
-
-## Gas Optimization
-
-This error happens when you don't have enough balance to deploy your contract. You can check your balance with the following command:
-
-- Batch operations where possible
-
-- Consider using packed structs for gas efficiency```shell
-
-- Optimize storage layoutcast wallet address --account monad-deployer
-
+# Pyth Entropy contract address on Monad
+ENTROPY_ADDRESS=0x36825bf3fbdf5a29e2d5148bfe7dcf7b5639e320
 ```
 
-## Events
+### Testing
 
-### I have constructor arguments, how do I deploy my contract?
+```bash
+# Run all tests
+forge test
 
-The contract emits the following events for transparency and indexing:
+# Run with verbosity
+forge test -vv
 
-```shell
-
-- `BetPlaced`: When a bet is placedforge create \
-
-- `BetSettled`: When a bet result is determined  src/Counter.sol:Counter \
-
-- `FeesWithdrawn`: When owner withdraws fees  --account monad-deployer \
-
-- `FeePercentageUpdated`: When fee percentage is changed  --broadcast \
-
-- `BetLimitsUpdated`: When bet limits are changed  --constructor-args <constructor_arguments>
-
+# Run specific test
+forge test --match-test testPlaceBet
 ```
 
-## License
+### Deployment
 
-### I have constructor arguments, how do I verify my contract?
+```bash
+# Deploy to Monad testnet
+forge script script/DeployCoinFlip.s.sol --rpc-url $RPC_URL --broadcast --legacy
 
-MIT License
-
-```shell
-
-## Disclaimerforge verify-contract \
-
-  <contract_address> \
-
-This is experimental software. Use at your own risk. Gambling can be addictive and may be illegal in your jurisdiction. Please gamble responsibly.  src/Counter.sol:Counter \
-  --chain 10143 \
-  --verifier sourcify \
-  --verifier-url https://sourcify-api-monad.blockvision.org \
-  --constructor-args <abi_encoded_constructor_arguments>
+# Verify contract (when service is available)
+forge verify-contract <CONTRACT_ADDRESS> src/CoinFlip.sol:CoinFlip --chain 10143 --verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org
 ```
 
-Please refer to the [Foundry Book](https://book.getfoundry.sh/) for more information.
+## 🏗️ Project Structure
+
+```
+monad-flip/
+├── src/
+│   ├── CoinFlip.sol          # Main contract
+│   └── IEntropy.sol          # Pyth Entropy interface
+├── script/
+│   └── DeployCoinFlip.s.sol  # Deployment script
+├── test/
+│   └── CoinFlip.t.sol        # Test suite
+├── frontend/                  # Web interface (coming soon)
+├── foundry.toml              # Foundry configuration
+└── README.md
+```
+
+## 🎨 Frontend
+
+The frontend is a modern web application built with:
+- **Next.js 14** - React framework
+- **Tailwind CSS** - Styling
+- **wagmi** - Ethereum interactions
+- **iOS Design** - Modern, clean interface
+
+*Frontend coming soon!*
+
+## 🔐 Security Features
+
+- **Pyth Entropy**: Industry-standard oracle for randomness
+- **Commit-Reveal**: Prevents prediction and frontrunning
+- **Timeout Protection**: Players can recover funds if issues occur
+- **House Balance Checks**: Ensures contract can pay winners
+- **Access Controls**: Owner-only functions for management
+
+## 📊 Game Economics
+
+| Event | Player Impact | House Impact |
+|-------|---------------|--------------|
+| Player Wins | +90% of bet | +5% fee, -100% of bet |
+| Player Loses | -100% of bet | +95% of bet, +5% fee |
+
+Example: 1 MON bet
+- **Win**: Receive 1.9 MON (1 MON original + 0.9 MON winnings)
+- **Lose**: Lose 1 MON
+- **House Fee**: 0.05 MON either way
+
+## 🧪 Testing Coverage
+
+- ✅ Deployment and initialization
+- ✅ Bet placement with validation
+- ✅ Result revealing
+- ✅ Multiple players and games
+- ✅ Game cancellation and refunds
+- ✅ House fee management
+- ✅ Owner functions
+- ✅ Edge cases and errors
+
+## 📝 License
+
+MIT License - see LICENSE file for details
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 🐛 Known Issues
+
+- Sourcify verification service currently unavailable on Monad testnet
+- Entropy fee is deducted from bet amount
+
+## 🔗 Links
+
+- [Monad Website](https://monad.xyz)
+- [Monad Testnet Explorer](https://testnet.monad.xyz)
+- [Pyth Entropy Docs](https://docs.pyth.network/entropy)
+- [Foundry Book](https://book.getfoundry.sh/)
+
+## 📧 Contact
+
+For questions or support, please open an issue on GitHub.
+
+---
+
+**⚠️ Disclaimer**: This is experimental software deployed on testnet. Use at your own risk. Never bet more than you can afford to lose.
