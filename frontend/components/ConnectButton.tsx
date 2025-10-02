@@ -17,7 +17,7 @@ export function ConnectButton() {
     switchChain({ chainId: monadTestnet.id });
   };
 
-  const handleConnectWallet = (connector: any) => {
+  const handleConnectWallet = (connector: (typeof connectors)[number]) => {
     connect({ connector });
     setShowWalletOptions(false);
   };
