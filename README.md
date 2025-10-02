@@ -167,13 +167,35 @@ monad-flip/
 
 ## 🎨 Frontend
 
-The frontend is a modern web application built with:
-- **Next.js 14** - React framework
-- **Tailwind CSS** - Styling
-- **wagmi** - Ethereum interactions
-- **iOS Design** - Modern, clean interface
+The frontend is a modern, fully-featured web application with:
 
-*Frontend coming soon!*
+### Tech Stack
+- **Next.js 15** - React framework with Turbopack
+- **Tailwind CSS 4** - Modern utility-first styling
+- **wagmi v2** - Ethereum wallet connections
+- **@tanstack/react-query** - Data fetching
+- **viem** - Ethereum interactions
+- **TypeScript** - Type safety
+
+### Features
+- ✨ **iOS-Inspired Design** - Clean, modern interface with glassmorphism
+- 🌓 **Dark Mode** - Toggle between light and dark themes
+- 🔌 **Multi-Wallet Support** - MetaMask & Phantom wallet integration
+- 🔄 **Auto Network Detection** - Prompts to switch to Monad Testnet
+- 📊 **Live Statistics** - Real-time contract balance and stats
+- 📜 **Game History** - Complete betting history per wallet
+- ❓ **FAQ Modal** - Comprehensive help without leaving the page
+- 📱 **Responsive** - Works on desktop, tablet, and mobile
+
+### Running the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Visit `http://localhost:3000` to see the app.
 
 ## 🔐 Security Features
 

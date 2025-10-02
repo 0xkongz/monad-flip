@@ -5,18 +5,21 @@ import { CoinFlip } from '@/components/CoinFlip';
 import { GameHistory } from '@/components/GameHistory';
 import { ConnectButton } from '@/components/ConnectButton';
 import { Statistics } from '@/components/Statistics';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { FAQModal } from '@/components/FAQModal';
 
 export default function Home() {
   const [refreshHistory, setRefreshHistory] = useState(0);
+  const [showFAQ, setShowFAQ] = useState(false);
 
   const handleGameComplete = () => {
     setRefreshHistory(prev => prev + 1);
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-gray-200/50">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-b border-gray-200/50 dark:border-gray-700/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -24,11 +27,20 @@ export default function Home() {
                 <span className="text-2xl">🎲</span>
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Monad Coin Flip</h1>
-                <p className="text-xs text-gray-500">Provably Fair Gaming</p>
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Monad Coin Flip</h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Provably Fair Gaming</p>
               </div>
             </div>
-            <ConnectButton />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowFAQ(true)}
+                className="px-4 py-2 rounded-xl bg-white/10 dark:bg-gray-800/50 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-all duration-200 shadow-sm text-gray-700 dark:text-gray-300 font-medium text-sm"
+              >
+                FAQ
+              </button>
+              <ThemeToggle />
+              <ConnectButton />
+            </div>
           </div>
         </div>
       </header>
@@ -37,27 +49,27 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-3">
+          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">
             Win <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">1.9x</span> Your Bet
           </h2>
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600 dark:text-gray-300 text-lg">
             Provably fair coin flip powered by Pyth Entropy
           </p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 border border-gray-200/50 shadow-sm">
-            <div className="text-sm text-gray-500 mb-1">Min Bet</div>
-            <div className="text-2xl font-semibold text-gray-900">0.01 MON</div>
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Min Bet</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-white">0.01 MON</div>
           </div>
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 border border-gray-200/50 shadow-sm">
-            <div className="text-sm text-gray-500 mb-1">Max Bet</div>
-            <div className="text-2xl font-semibold text-gray-900">1 MON</div>
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Max Bet</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-white">1 MON</div>
           </div>
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 border border-gray-200/50 shadow-sm">
-            <div className="text-sm text-gray-500 mb-1">House Fee</div>
-            <div className="text-2xl font-semibold text-gray-900">5%</div>
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">House Fee</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-white">5%</div>
           </div>
         </div>
 
@@ -76,16 +88,19 @@ export default function Home() {
       <Statistics />
 
       {/* Footer */}
-      <footer className="mt-16 py-8 border-t border-gray-200/50">
+      <footer className="mt-16 py-8 border-t border-gray-200/50 dark:border-gray-700/50">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             Powered by <span className="font-semibold">Pyth Entropy</span> on <span className="font-semibold">Monad Testnet</span>
           </p>
-          <p className="text-gray-400 text-xs mt-2">
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">
             ⚠️ Testnet only. Never bet more than you can afford to lose.
           </p>
         </div>
       </footer>
+
+      {/* FAQ Modal */}
+      <FAQModal isOpen={showFAQ} onClose={() => setShowFAQ(false)} />
     </main>
   );
 }

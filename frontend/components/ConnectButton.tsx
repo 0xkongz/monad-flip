@@ -13,6 +13,14 @@ export function ConnectButton() {
 
   const isWrongNetwork = isConnected && chain?.id !== monadTestnet.id;
 
+  // Deduplicate connectors by name
+  const uniqueConnectors = connectors.reduce((acc, connector) => {
+    if (!acc.find(c => c.name === connector.name)) {
+      acc.push(connector);
+    }
+    return acc;
+  }, [] as typeof connectors);
+
   const handleSwitchNetwork = () => {
     switchChain({ chainId: monadTestnet.id });
   };
@@ -61,7 +69,7 @@ export function ConnectButton() {
       {showWalletOptions && (
         <div className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-xl border border-gray-200 rounded-2xl shadow-2xl overflow-hidden z-50">
           <div className="p-2">
-            {connectors.map((connector) => (
+            {uniqueConnectors.map((connector) => (
               <button
                 key={connector.id}
                 onClick={() => handleConnectWallet(connector)}
