@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import CoinFlip from '@/components/CoinFlip';
-import GameHistory from '@/components/GameHistory';
+import { CoinFlip } from '@/components/CoinFlip';
+import { GameHistory } from '@/components/GameHistory';
 import { ConnectButton } from '@/components/ConnectButton';
 
 export default function Home() {
