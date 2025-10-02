@@ -16,10 +16,10 @@ export function ConnectButton() {
   // Deduplicate connectors by name
   const uniqueConnectors = connectors.reduce((acc, connector) => {
     if (!acc.find(c => c.name === connector.name)) {
-      acc.push(connector);
+      return [...acc, connector];
     }
     return acc;
-  }, [] as typeof connectors);
+  }, [] as (typeof connectors)[number][]);
 
   const handleSwitchNetwork = () => {
     switchChain({ chainId: monadTestnet.id });

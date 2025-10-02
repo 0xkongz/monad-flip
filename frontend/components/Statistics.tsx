@@ -1,6 +1,6 @@
 'use client';
 
-import { useReadContract, useBalance } from 'wagmi';
+import { useBalance } from 'wagmi';
 import { formatEther } from 'viem';
 import { COIN_FLIP_ADDRESS } from '../config/contract';
 
