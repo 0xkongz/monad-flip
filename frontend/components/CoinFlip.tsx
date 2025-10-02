@@ -7,7 +7,11 @@ import { COIN_FLIP_ADDRESS, COIN_FLIP_ABI } from '../config/contract';
 
 type CoinSide = 0 | 1; // 0 = Heads, 1 = Tails
 
-export function CoinFlip() {
+interface CoinFlipProps {
+  onGameComplete?: () => void;
+}
+
+export function CoinFlip({ onGameComplete }: CoinFlipProps) {
   const { address, isConnected } = useAccount();
   const [betAmount, setBetAmount] = useState('0.01');
   const [selectedSide, setSelectedSide] = useState<CoinSide>(0);
@@ -92,12 +96,13 @@ export function CoinFlip() {
       setTimeout(() => {
         setIsFlipping(false);
         setStatusMessage('');
+        onGameComplete?.();
       }, 3000);
     } else if (error) {
       setStatusMessage(`Error: ${error.message}`);
       setIsFlipping(false);
     }
-  }, [isConfirming, isConfirmed, error]);
+  }, [isConfirming, isConfirmed, error, onGameComplete]);
 
   if (!isConnected) {
     return (
