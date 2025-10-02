@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CoinFlip } from '@/components/CoinFlip';
 import { GameHistory } from '@/components/GameHistory';
 import { ConnectButton } from '@/components/ConnectButton';
+import { Statistics } from '@/components/Statistics';
 
 export default function Home() {
   const [refreshHistory, setRefreshHistory] = useState(0);
@@ -70,6 +71,9 @@ export default function Home() {
           <GameHistory key={refreshHistory} />
         </div>
       </div>
+
+      {/* Statistics */}
+      <Statistics />
 
       {/* Footer */}
       <footer className="mt-16 py-8 border-t border-gray-200/50">

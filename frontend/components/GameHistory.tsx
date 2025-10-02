@@ -88,12 +88,7 @@ export function GameHistory() {
   }, [isConnected, refetchGameIds]);
 
   if (!isConnected) {
-    return (
-      <div className="w-full max-w-2xl mx-auto p-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
-        <h2 className="text-2xl font-bold text-white mb-6">Game History</h2>
-        <p className="text-center text-white/70">Connect your wallet to view your game history</p>
-      </div>
-    );
+    return null;
   }
 
   if (isLoading) {

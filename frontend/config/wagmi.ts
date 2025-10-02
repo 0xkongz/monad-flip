@@ -17,7 +17,6 @@ export const config = createConfig({
         }
       },
     }),
-    injected(), // Fallback for other injected wallets
   ],
   transports: {
     [monadTestnet.id]: http('https://testnet-rpc.monad.xyz'),
