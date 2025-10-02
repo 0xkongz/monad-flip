@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { COIN_FLIP_ADDRESS, COIN_FLIP_ABI } from '../config/contract';
+import { monadTestnet } from '../config/chains';
 
 type CoinSide = 0 | 1; // 0 = Heads, 1 = Tails
 
@@ -12,11 +13,14 @@ interface CoinFlipProps {
 }
 
 export function CoinFlip({ onGameComplete }: CoinFlipProps) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
+  const { switchChain } = useSwitchChain();
   const [betAmount, setBetAmount] = useState('0.01');
   const [selectedSide, setSelectedSide] = useState<CoinSide>(0);
   const [statusMessage, setStatusMessage] = useState('');
   const [isFlipping, setIsFlipping] = useState(false);
+
+  const isWrongNetwork = isConnected && chain?.id !== monadTestnet.id;
 
   // Read contract data
   const { data: minBet } = useReadContract({
@@ -108,6 +112,26 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     return (
       <div className="w-full max-w-md mx-auto p-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
         <p className="text-center text-white/70 text-lg">Connect your wallet to play</p>
+      </div>
+    );
+  }
+
+  if (isWrongNetwork) {
+    return (
+      <div className="w-full max-w-md mx-auto p-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h3 className="text-2xl font-bold text-white mb-4">Wrong Network</h3>
+          <p className="text-white/70 text-lg mb-6">
+            Please switch to Monad Testnet to play
+          </p>
+          <button
+            onClick={() => switchChain({ chainId: monadTestnet.id })}
+            className="px-8 py-3 bg-gradient-to-b from-yellow-500 to-yellow-600 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl active:scale-95 transform transition-all duration-200 ease-out"
+          >
+            Switch to Monad Testnet
+          </button>
+        </div>
       </div>
     );
   }
