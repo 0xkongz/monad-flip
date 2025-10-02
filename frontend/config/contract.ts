@@ -1,4 +1,4 @@
-export const COIN_FLIP_ADDRESS = '0x7E917915Cefc7f98d6d3cA07f21c4B950803D1dD' as const;
+export const COIN_FLIP_ADDRESS = '0xF73329ea33Cc8447f00ECAaD90C2A255319aB75E' as const;
 
 export const COIN_FLIP_ABI = [
   {
@@ -8,27 +8,14 @@ export const COIN_FLIP_ABI = [
       { internalType: 'uint256', name: '_minBet', type: 'uint256' },
       { internalType: 'uint256', name: '_maxBet', type: 'uint256' },
     ],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
     type: 'constructor',
   },
   {
-    inputs: [
-      { internalType: 'uint8', name: '_choice', type: 'uint8' },
-      { internalType: 'bytes32', name: '_userRandomness', type: 'bytes32' },
-    ],
+    inputs: [{ internalType: 'uint8', name: '_choice', type: 'uint8' }],
     name: 'placeBet',
     outputs: [{ internalType: 'uint256', name: 'gameId', type: 'uint256' }],
     stateMutability: 'payable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'uint256', name: '_gameId', type: 'uint256' },
-      { internalType: 'bytes32', name: '_providerRevelation', type: 'bytes32' },
-    ],
-    name: 'revealResult',
-    outputs: [],
-    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
@@ -58,11 +45,9 @@ export const COIN_FLIP_ABI = [
           { internalType: 'bool', name: 'won', type: 'bool' },
           { internalType: 'uint256', name: 'payout', type: 'uint256' },
           { internalType: 'uint256', name: 'timestamp', type: 'uint256' },
-          { internalType: 'enum CoinFlip.GameState', name: 'state', type: 'uint8' },
-          { internalType: 'uint64', name: 'entropySequenceNumber', type: 'uint64' },
-          { internalType: 'bytes32', name: 'userRandomness', type: 'bytes32' },
+          { internalType: 'enum CoinFlipV2.GameState', name: 'state', type: 'uint8' },
         ],
-        internalType: 'struct CoinFlip.Game',
+        internalType: 'struct CoinFlipV2.Game',
         name: '',
         type: 'tuple',
       },
@@ -73,7 +58,7 @@ export const COIN_FLIP_ABI = [
   {
     inputs: [],
     name: 'getEntropyFee',
-    outputs: [{ internalType: 'uint128', name: '', type: 'uint128' }],
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -95,11 +80,10 @@ export const COIN_FLIP_ABI = [
     anonymous: false,
     inputs: [
       { indexed: true, internalType: 'address', name: 'player', type: 'address' },
+      { indexed: true, internalType: 'uint256', name: 'gameId', type: 'uint256' },
       { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
       { indexed: false, internalType: 'uint8', name: 'choice', type: 'uint8' },
-      { indexed: false, internalType: 'uint256', name: 'gameId', type: 'uint256' },
       { indexed: false, internalType: 'uint64', name: 'sequenceNumber', type: 'uint64' },
-      { indexed: false, internalType: 'bytes32', name: 'userCommitment', type: 'bytes32' },
     ],
     name: 'BetPlaced',
     type: 'event',

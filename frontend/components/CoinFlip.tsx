@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, usePublicClient } from 'wagmi';
-import { parseEther, formatEther, decodeEventLog } from 'viem';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useWatchContractEvent } from 'wagmi';
+import { parseEther, formatEther } from 'viem';
 import { COIN_FLIP_ADDRESS, COIN_FLIP_ABI } from '../config/contract';
 import { monadTestnet } from '../config/chains';
 
@@ -15,14 +15,11 @@ interface CoinFlipProps {
 export function CoinFlip({ onGameComplete }: CoinFlipProps) {
   const { address, isConnected, chain } = useAccount();
   const { switchChain } = useSwitchChain();
-  const publicClient = usePublicClient();
   const [betAmount, setBetAmount] = useState('0.01');
   const [selectedSide, setSelectedSide] = useState<CoinSide>(0);
   const [statusMessage, setStatusMessage] = useState('');
   const [isFlipping, setIsFlipping] = useState(false);
   const [currentGameId, setCurrentGameId] = useState<bigint | null>(null);
-  const [sequenceNumber, setSequenceNumber] = useState<bigint | null>(null);
-  const [userRandomness, setUserRandomness] = useState<`0x${string}` | null>(null);
 
   const isWrongNetwork = isConnected && chain?.id !== monadTestnet.id;
 
@@ -45,41 +42,51 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     functionName: 'getEntropyFee',
   });
 
-  // Write contract for placeBet
+  // Write contract
   const {
-    writeContract: writePlaceBet,
-    data: placeBetHash,
-    isPending: isPlaceBetPending,
-    error: placeBetError
+    writeContract,
+    data: hash,
+    isPending,
+    error
   } = useWriteContract();
 
   const {
-    isLoading: isPlaceBetConfirming,
-    isSuccess: isPlaceBetConfirmed
+    isLoading: isConfirming,
+    isSuccess: isConfirmed
   } = useWaitForTransactionReceipt({
-    hash: placeBetHash,
+    hash,
   });
 
-  // Write contract for revealResult
-  const {
-    writeContract: writeReveal,
-    data: revealHash,
-    isPending: isRevealPending
-  } = useWriteContract();
+  // Watch for GameResult event
+  useWatchContractEvent({
+    address: COIN_FLIP_ADDRESS,
+    abi: COIN_FLIP_ABI,
+    eventName: 'GameResult',
+    onLogs(logs: readonly unknown[]) {
+      logs.forEach((log: unknown) => {
+        const typedLog = log as { args: { player: string; gameId: bigint; result: number; won: boolean; payout: bigint } };
+        const { player, gameId, result, won, payout } = typedLog.args;
 
-  const {
-    isLoading: isRevealConfirming,
-    isSuccess: isRevealConfirmed
-  } = useWaitForTransactionReceipt({
-    hash: revealHash,
+        // Only process if it's our game
+        if (currentGameId !== null && gameId === currentGameId && player?.toLowerCase() === address?.toLowerCase()) {
+          const resultSide = result === 0 ? 'Heads' : 'Tails';
+
+          if (won) {
+            setStatusMessage(`🎉 You won! Result: ${resultSide}. Payout: ${formatEther(payout)} MON`);
+          } else {
+            setStatusMessage(`😢 You lost. Result: ${resultSide}. Better luck next time!`);
+          }
+
+          setTimeout(() => {
+            setIsFlipping(false);
+            setStatusMessage('');
+            setCurrentGameId(null);
+            onGameComplete?.();
+          }, 5000);
+        }
+      });
+    },
   });
-
-  // Generate random bytes32 for userRandomness
-  const generateRandomBytes32 = (): `0x${string}` => {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return `0x${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}`;
-  };
 
   const handlePlaceBet = async () => {
     if (!isConnected || !address) {
@@ -100,17 +107,14 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
       setIsFlipping(true);
       setStatusMessage('Placing bet...');
 
-      const randomness = generateRandomBytes32();
-      setUserRandomness(randomness);
-
       const betWei = parseEther(betAmount);
       const totalValue = entropyFee ? betWei + BigInt(entropyFee) : betWei;
 
-      writePlaceBet({
+      writeContract({
         address: COIN_FLIP_ADDRESS,
         abi: COIN_FLIP_ABI,
         functionName: 'placeBet',
-        args: [selectedSide, randomness],
+        args: [selectedSide],
         value: totalValue,
       });
     } catch (err) {
@@ -120,222 +124,63 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     }
   };
 
-  // Fetch provider revelation from Fortuna API
-  const fetchProviderRevelation = async (sequenceNum: bigint): Promise<`0x${string}` | null> => {
-    try {
-      // Try different possible Fortuna endpoints
-      const endpoints = [
-        `https://fortuna-staging.dourolabs.app/v1/chains/monad-testnet/revelations/${sequenceNum}`,
-        `https://fortuna-staging.dourolabs.app/v1/chains/monad/revelations/${sequenceNum}`,
-        `https://fortuna.dourolabs.app/v1/chains/monad-testnet/revelations/${sequenceNum}`,
-        `https://fortuna.dourolabs.app/v1/chains/monad/revelations/${sequenceNum}`,
-      ];
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isConfirming) {
+      setStatusMessage('Confirming transaction...');
+    } else if (isConfirmed && hash) {
+      setStatusMessage('Bet placed! Waiting for Pyth Entropy to reveal result...');
 
-      for (const endpoint of endpoints) {
+      // Extract gameId from transaction logs
+      const extractGameId = async () => {
         try {
-          const response = await fetch(endpoint);
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Fortuna API response:', data);
-
-            // The revelation might be in different fields
-            if (data.revelation) return data.revelation as `0x${string}`;
-            if (data.value) return data.value as `0x${string}`;
-            if (data.data) return data.data as `0x${string}`;
-
-            // If the response is a string starting with 0x, use it directly
-            if (typeof data === 'string' && data.startsWith('0x')) {
-              return data as `0x${string}`;
-            }
-          }
+          // We'll get the gameId from the BetPlaced event via the watcher
+          // For now, just set a placeholder - the GameResult event will match it
         } catch (err) {
-          console.log(`Failed to fetch from ${endpoint}:`, err);
-          continue;
+          console.error('Error extracting gameId:', err);
         }
-      }
+      };
 
-      return null;
-    } catch (err) {
-      console.error('Error fetching provider revelation:', err);
-      return null;
-    }
-  };
-
-  // Handle bet placed confirmation
-  useEffect(() => {
-    const handleBetPlaced = async () => {
-      if (!isPlaceBetConfirmed || !publicClient || !placeBetHash || !userRandomness) return;
-
-      try {
-        setStatusMessage('Bet confirmed! Fetching randomness...');
-
-        // Get transaction receipt to extract event logs
-        const receipt = await publicClient.getTransactionReceipt({ hash: placeBetHash });
-
-        // Find BetPlaced event
-        const betPlacedEvent = receipt.logs.find((log) => {
-          try {
-            const decoded = decodeEventLog({
-              abi: COIN_FLIP_ABI,
-              data: log.data,
-              topics: log.topics,
-            });
-            return decoded.eventName === 'BetPlaced';
-          } catch {
-            return false;
-          }
-        });
-
-        if (!betPlacedEvent) {
-          throw new Error('BetPlaced event not found');
-        }
-
-        const decoded = decodeEventLog({
-          abi: COIN_FLIP_ABI,
-          data: betPlacedEvent.data,
-          topics: betPlacedEvent.topics,
-        });
-
-        const gameId = (decoded.args as any).gameId;
-        const seqNum = (decoded.args as any).sequenceNumber;
-
-        console.log('Game ID:', gameId);
-        console.log('Sequence Number:', seqNum);
-
-        setCurrentGameId(gameId);
-        setSequenceNumber(seqNum);
-
-        // Wait a bit for Pyth to process the request
-        setStatusMessage('Waiting for Pyth Entropy provider...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Fetch provider revelation
-        setStatusMessage('Fetching provider revelation...');
-        const providerRevelation = await fetchProviderRevelation(seqNum);
-
-        if (!providerRevelation) {
-          throw new Error('Failed to fetch provider revelation. Please try revealing manually.');
-        }
-
-        console.log('Provider Revelation:', providerRevelation);
-
-        // Call revealResult
-        setStatusMessage('Revealing result...');
-        writeReveal({
-          address: COIN_FLIP_ADDRESS,
-          abi: COIN_FLIP_ABI,
-          functionName: 'revealResult',
-          args: [gameId, providerRevelation],
-        });
-
-      } catch (err) {
-        console.error('Error in auto-reveal:', err);
-        setStatusMessage(err instanceof Error ? err.message : 'Error revealing result. Please try canceling the game after 1 hour.');
-        setIsFlipping(false);
-      }
-    };
-
-    handleBetPlaced();
-  }, [isPlaceBetConfirmed, placeBetHash, userRandomness, publicClient, writeReveal]);
-
-  // Handle reveal confirmation
-  useEffect(() => {
-    const handleRevealConfirmed = async () => {
-      if (!isRevealConfirmed || !currentGameId || !publicClient || !revealHash) return;
-
-      try {
-        setStatusMessage('Checking result...');
-
-        // Get transaction receipt to extract GameResult event
-        const receipt = await publicClient.getTransactionReceipt({ hash: revealHash });
-
-        const gameResultEvent = receipt.logs.find((log) => {
-          try {
-            const decoded = decodeEventLog({
-              abi: COIN_FLIP_ABI,
-              data: log.data,
-              topics: log.topics,
-            });
-            return decoded.eventName === 'GameResult';
-          } catch {
-            return false;
-          }
-        });
-
-        if (gameResultEvent) {
-          const decoded = decodeEventLog({
-            abi: COIN_FLIP_ABI,
-            data: gameResultEvent.data,
-            topics: gameResultEvent.topics,
-          });
-
-          const won = (decoded.args as any).won;
-          const result = (decoded.args as any).result;
-          const payout = (decoded.args as any).payout;
-
-          const resultSide = result === 0 ? 'Heads' : 'Tails';
-
-          if (won) {
-            setStatusMessage(`🎉 You won! Result: ${resultSide}. Payout: ${formatEther(payout)} MON`);
-          } else {
-            setStatusMessage(`😢 You lost. Result: ${resultSide}. Better luck next time!`);
-          }
-        }
-
-        setTimeout(() => {
-          setIsFlipping(false);
-          setStatusMessage('');
-          setCurrentGameId(null);
-          setSequenceNumber(null);
-          setUserRandomness(null);
-          onGameComplete?.();
-        }, 5000);
-
-      } catch (err) {
-        console.error('Error checking result:', err);
-        setStatusMessage('Result revealed! Check your game history.');
-        setTimeout(() => {
-          setIsFlipping(false);
-          setStatusMessage('');
-          onGameComplete?.();
-        }, 3000);
-      }
-    };
-
-    handleRevealConfirmed();
-  }, [isRevealConfirmed, currentGameId, publicClient, revealHash, onGameComplete]);
-
-  // Handle errors
-  useEffect(() => {
-    if (isPlaceBetConfirming) {
-      setStatusMessage('Confirming bet transaction...');
-    } else if (placeBetError) {
-      setStatusMessage(`Error: ${placeBetError.message}`);
+      extractGameId();
+    } else if (error) {
+      setStatusMessage(`Error: ${error.message}`);
       setIsFlipping(false);
     }
-  }, [isPlaceBetConfirming, placeBetError]);
+  }, [isConfirming, isConfirmed, error, hash]);
 
-  useEffect(() => {
-    if (isRevealConfirming) {
-      setStatusMessage('Confirming reveal transaction...');
-    }
-  }, [isRevealConfirming]);
+  // Watch for BetPlaced event to get gameId
+  useWatchContractEvent({
+    address: COIN_FLIP_ADDRESS,
+    abi: COIN_FLIP_ABI,
+    eventName: 'BetPlaced',
+    onLogs(logs: readonly unknown[]) {
+      logs.forEach((log: unknown) => {
+        const typedLog = log as { args: { player: string; gameId: bigint } };
+        const { player, gameId } = typedLog.args;
+
+        if (player?.toLowerCase() === address?.toLowerCase() && isFlipping) {
+          console.log('Bet placed! Game ID:', gameId.toString());
+          setCurrentGameId(gameId);
+        }
+      });
+    },
+  });
 
   if (!isConnected) {
     return (
-      <div className="w-full max-w-md mx-auto p-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
-        <p className="text-center text-white/70 text-lg">Connect your wallet to play</p>
+      <div className="w-full max-w-md mx-auto p-8 bg-white/5 dark:bg-gray-800/50 backdrop-blur-xl border border-white/10 dark:border-gray-700/50 rounded-3xl shadow-2xl">
+        <p className="text-center text-gray-700 dark:text-white/70 text-lg">Connect your wallet to play</p>
       </div>
     );
   }
 
   if (isWrongNetwork) {
     return (
-      <div className="w-full max-w-md mx-auto p-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
+      <div className="w-full max-w-md mx-auto p-8 bg-white/5 dark:bg-gray-800/50 backdrop-blur-xl border border-white/10 dark:border-gray-700/50 rounded-3xl shadow-2xl">
         <div className="text-center">
           <div className="text-6xl mb-4">⚠️</div>
-          <h3 className="text-2xl font-bold text-white mb-4">Wrong Network</h3>
-          <p className="text-white/70 text-lg mb-6">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Wrong Network</h3>
+          <p className="text-gray-700 dark:text-white/70 text-lg mb-6">
             Please switch to Monad Testnet to play
           </p>
           <button
@@ -349,11 +194,11 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     );
   }
 
-  const isProcessing = isPlaceBetPending || isPlaceBetConfirming || isRevealPending || isRevealConfirming || isFlipping;
+  const isProcessing = isPending || isConfirming || isFlipping;
 
   return (
-    <div className="w-full max-w-md mx-auto p-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
-      <h2 className="text-3xl font-bold text-white mb-8 text-center">Coin Flip</h2>
+    <div className="w-full max-w-md mx-auto p-8 bg-white/5 dark:bg-gray-800/50 backdrop-blur-xl border border-white/10 dark:border-gray-700/50 rounded-3xl shadow-2xl">
+      <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Coin Flip</h2>
 
       {/* Coin Animation */}
       <div className="flex justify-center mb-8">
@@ -368,7 +213,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
 
       {/* Bet Amount Input */}
       <div className="mb-6">
-        <label className="block text-white/90 font-medium mb-2">Bet Amount (MON)</label>
+        <label className="block text-gray-900 dark:text-white/90 font-medium mb-2">Bet Amount (MON)</label>
         <input
           type="number"
           value={betAmount}
@@ -376,20 +221,25 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
           step="0.01"
           min={minBet ? formatEther(minBet) : '0.01'}
           max={maxBet ? formatEther(maxBet) : '1'}
-          className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+          className="w-full px-4 py-3 bg-white/10 dark:bg-gray-700/50 backdrop-blur-xl border border-gray-300/50 dark:border-white/20 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
           placeholder="0.01"
           disabled={isProcessing}
         />
         {minBet && maxBet && (
-          <p className="text-sm text-white/60 mt-2">
+          <p className="text-sm text-gray-600 dark:text-white/60 mt-2">
             Min: {formatEther(minBet)} MON | Max: {formatEther(maxBet)} MON
+          </p>
+        )}
+        {entropyFee && (
+          <p className="text-xs text-gray-500 dark:text-white/50 mt-1">
+            + {formatEther(BigInt(entropyFee))} MON Pyth Entropy fee
           </p>
         )}
       </div>
 
       {/* Heads/Tails Selection */}
       <div className="mb-6">
-        <label className="block text-white/90 font-medium mb-3">Choose Side</label>
+        <label className="block text-gray-900 dark:text-white/90 font-medium mb-3">Choose Side</label>
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => setSelectedSide(0)}
@@ -397,7 +247,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
             className={`py-4 rounded-2xl font-bold text-lg transition-all duration-200 transform active:scale-95 ${
               selectedSide === 0
                 ? 'bg-gradient-to-b from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50'
-                : 'bg-white/10 backdrop-blur-xl border border-white/20 text-white/70 hover:bg-white/20'
+                : 'bg-white/10 dark:bg-gray-700/50 backdrop-blur-xl border border-gray-300/50 dark:border-white/20 text-gray-700 dark:text-white/70 hover:bg-white/20 dark:hover:bg-gray-600/50'
             } disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`}
           >
             Heads
@@ -408,7 +258,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
             className={`py-4 rounded-2xl font-bold text-lg transition-all duration-200 transform active:scale-95 ${
               selectedSide === 1
                 ? 'bg-gradient-to-b from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/50'
-                : 'bg-white/10 backdrop-blur-xl border border-white/20 text-white/70 hover:bg-white/20'
+                : 'bg-white/10 dark:bg-gray-700/50 backdrop-blur-xl border border-gray-300/50 dark:border-white/20 text-gray-700 dark:text-white/70 hover:bg-white/20 dark:hover:bg-gray-600/50'
             } disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`}
           >
             Tails
@@ -427,8 +277,8 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
 
       {/* Status Message */}
       {statusMessage && (
-        <div className="mt-6 p-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl">
-          <p className="text-center text-white/90">{statusMessage}</p>
+        <div className="mt-6 p-4 bg-white/10 dark:bg-gray-700/50 backdrop-blur-xl border border-gray-300/50 dark:border-white/20 rounded-2xl">
+          <p className="text-center text-gray-900 dark:text-white/90">{statusMessage}</p>
         </div>
       )}
 

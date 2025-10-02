@@ -1,5 +1,5 @@
 {
-  "dependencies": {
+  "devDependencies": {
     "@pythnetwork/entropy-sdk-solidity": "^2.0.0"
   }
 }
