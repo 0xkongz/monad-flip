@@ -1,5 +1,5 @@
 import { http, createConfig } from 'wagmi'
-import { injected, walletConnect } from 'wagmi/connectors'
+import { injected } from 'wagmi/connectors'
 import { monadTestnet } from './chains'
 
 export const config = createConfig({
@@ -13,7 +13,7 @@ export const config = createConfig({
         return {
           id: 'phantom',
           name: 'Phantom',
-          provider: (window as any)?.phantom?.ethereum,
+          provider: typeof window !== 'undefined' ? (window as any)?.phantom?.ethereum : undefined,
         }
       },
     }),
