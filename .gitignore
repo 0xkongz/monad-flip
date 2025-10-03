@@ -9,6 +9,7 @@ out/
 
 # Docs
 docs/
+COMPLETE_TUTORIAL.md
 
 # Dotenv file
 .env
