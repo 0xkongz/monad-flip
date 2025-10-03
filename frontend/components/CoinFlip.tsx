@@ -239,7 +239,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
                 address: COIN_FLIP_ADDRESS,
                 abi: COIN_FLIP_ABI,
                 functionName: 'getPlayerGames',
-                args: [address],
+                args: address ? [address] : undefined,
               }) as bigint[];
 
               if (gameIds && gameIds.length > 0) {
@@ -270,7 +270,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
               address: COIN_FLIP_ADDRESS,
               abi: COIN_FLIP_ABI,
               functionName: 'getPlayerGames',
-              args: [address],
+              args: address ? [address] : undefined,
             }) as bigint[];
 
             if (gameIds && gameIds.length > 0) {
