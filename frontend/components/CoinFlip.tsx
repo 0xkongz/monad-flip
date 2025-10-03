@@ -193,82 +193,87 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     }
   };
 
-  // Handle transaction confirmation and poll for result
+  // Handle transaction confirmation
   useEffect(() => {
     if (isConfirming) {
       setStatusMessage('Confirming transaction...');
-    } else if (isConfirmed && hash && currentGameIdRef.current !== null) {
-      setStatusMessage('Bet placed! Waiting for Pyth Entropy to reveal result...');
-
-      // Poll for game result
-      const pollInterval = setInterval(async () => {
-        if (!currentGameIdRef.current) {
-          clearInterval(pollInterval);
-          return;
-        }
-
-        try {
-          const { createPublicClient, http } = await import('viem');
-          const { monadTestnet } = await import('../config/chains');
-
-          const publicClient = createPublicClient({
-            chain: monadTestnet,
-            transport: http('https://testnet-rpc.monad.xyz'),
-          });
-
-          const game = await publicClient.readContract({
-            address: COIN_FLIP_ADDRESS,
-            abi: COIN_FLIP_ABI,
-            functionName: 'getGame',
-            args: [currentGameIdRef.current],
-          }) as {
-            player: string;
-            betAmount: bigint;
-            playerChoice: number;
-            result: number;
-            won: boolean;
-            payout: bigint;
-            timestamp: bigint;
-            state: number;
-          };
-
-          console.log('[Polling] Game state:', game);
-
-          // Check if game is completed (state === 1)
-          if (game.state === 1) {
-            console.log('[Polling] Game completed! Showing result...');
-            clearInterval(pollInterval);
-
-            const resultSide = game.result === 0 ? 'Heads' : 'Tails';
-            const won = game.won;
-
-            if (won) {
-              setStatusMessage(`🎉 YOU WIN! Result: ${resultSide}. Payout: ${formatEther(game.payout)} MON`);
-            } else {
-              setStatusMessage(`😢 YOU LOSE! Result: ${resultSide}. Better luck next time!`);
-            }
-
-            setIsFlipping(false);
-            setCurrentGameId(null);
-            onGameComplete?.();
-
-            // Clear message after 5 seconds
-            setTimeout(() => {
-              setStatusMessage('');
-            }, 5000);
-          }
-        } catch (err) {
-          console.error('[Polling] Error:', err);
-        }
-      }, 2000); // Poll every 2 seconds
-
-      // Cleanup on unmount
-      return () => clearInterval(pollInterval);
+    } else if (isConfirmed && hash) {
+      setStatusMessage('Bet placed! Waiting for game ID...');
     } else if (error) {
       setStatusMessage(`Error: ${error.message}`);
       setIsFlipping(false);
     }
-  }, [isConfirming, isConfirmed, error, hash, onGameComplete]);
+  }, [isConfirming, isConfirmed, error, hash]);
+
+  // Poll for game result once we have gameId
+  useEffect(() => {
+    if (!currentGameId || !isFlipping) return;
+
+    console.log('[Polling] Starting to poll for game result. Game ID:', currentGameId.toString());
+    setStatusMessage('Waiting for Pyth Entropy to reveal result...');
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const { createPublicClient, http } = await import('viem');
+        const { monadTestnet } = await import('../config/chains');
+
+        const publicClient = createPublicClient({
+          chain: monadTestnet,
+          transport: http('https://testnet-rpc.monad.xyz'),
+        });
+
+        const game = await publicClient.readContract({
+          address: COIN_FLIP_ADDRESS,
+          abi: COIN_FLIP_ABI,
+          functionName: 'getGame',
+          args: [currentGameId],
+        }) as {
+          player: string;
+          betAmount: bigint;
+          playerChoice: number;
+          result: number;
+          won: boolean;
+          payout: bigint;
+          timestamp: bigint;
+          state: number;
+        };
+
+        console.log('[Polling] Game state:', game);
+
+        // Check if game is completed (state === 1)
+        if (game.state === 1) {
+          console.log('[Polling] Game completed! Showing result...');
+          clearInterval(pollInterval);
+
+          const resultSide = game.result === 0 ? 'Heads' : 'Tails';
+          const won = game.won;
+
+          if (won) {
+            setStatusMessage(`🎉 YOU WIN! Result: ${resultSide}. Payout: ${formatEther(game.payout)} MON`);
+          } else {
+            setStatusMessage(`😢 YOU LOSE! Result: ${resultSide}. Better luck next time!`);
+          }
+
+          setIsFlipping(false);
+          setCurrentGameId(null);
+          onGameComplete?.();
+
+          // Clear message after 5 seconds
+          setTimeout(() => {
+            setStatusMessage('');
+          }, 5000);
+        }
+      } catch (err) {
+        console.error('[Polling] Error:', err);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      console.log('[Polling] Cleaning up interval');
+      clearInterval(pollInterval);
+    };
+  }, [currentGameId, isFlipping, onGameComplete]);
 
   // Watch for BetPlaced event to get gameId
   useWatchContractEvent({
@@ -276,13 +281,18 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     abi: COIN_FLIP_ABI,
     eventName: 'BetPlaced',
     onLogs(logs: readonly unknown[]) {
+      console.log('[BetPlaced] Event received:', logs);
       logs.forEach((log: unknown) => {
         const typedLog = log as { args: { player: string; gameId: bigint } };
         const { player, gameId } = typedLog.args;
 
+        console.log('[BetPlaced] Player:', player, 'GameID:', gameId?.toString(), 'Current address:', address, 'isFlipping:', isFlippingRef.current);
+
         if (player?.toLowerCase() === address?.toLowerCase() && isFlippingRef.current) {
-          console.log('Bet placed! Game ID:', gameId.toString());
+          console.log('[BetPlaced] Match! Setting game ID:', gameId.toString());
           setCurrentGameId(gameId);
+        } else {
+          console.log('[BetPlaced] No match - ignoring');
         }
       });
     },
