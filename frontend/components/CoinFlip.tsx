@@ -24,6 +24,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
   // Use refs to avoid stale closures in event handlers
   const isFlippingRef = useRef(false);
   const currentGameIdRef = useRef<bigint | null>(null);
+  const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync refs with state
   useEffect(() => {
@@ -96,6 +97,13 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
         // Only process if it's our player and we're currently waiting for a result
         if (player?.toLowerCase() === address?.toLowerCase() && isFlippingRef.current) {
           console.log('[GameResult] This is our game! Processing result...');
+
+          // Clear fallback timeout since we got the event
+          if (fallbackTimeoutRef.current) {
+            console.log('[GameResult] Clearing fallback timeout');
+            clearTimeout(fallbackTimeoutRef.current);
+            fallbackTimeoutRef.current = null;
+          }
 
           const resultSide = result === 0 ? 'Heads' : 'Tails';
 
@@ -184,13 +192,21 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     } else if (isConfirmed && hash) {
       setStatusMessage('Bet placed! Waiting for Pyth Entropy to reveal result...');
 
-      // Start polling for result after 3 seconds (give time for event to fire)
-      const pollTimeout = setTimeout(() => {
-        console.log('Starting fallback polling for game result...');
+      // Fallback timeout in case event doesn't fire
+      fallbackTimeoutRef.current = setTimeout(() => {
+        console.log('[Fallback] Timeout reached - clearing stuck state and refreshing history');
+        setIsFlipping(false);
+        setCurrentGameId(null);
+        setStatusMessage('');
         onGameComplete?.();
-      }, 15000); // 15 second timeout fallback
+      }, 10000); // 10 second timeout fallback
 
-      return () => clearTimeout(pollTimeout);
+      return () => {
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+          fallbackTimeoutRef.current = null;
+        }
+      };
     } else if (error) {
       setStatusMessage(`Error: ${error.message}`);
       setIsFlipping(false);
