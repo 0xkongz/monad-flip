@@ -66,7 +66,8 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
 
   const {
     isLoading: isConfirming,
-    isSuccess: isConfirmed
+    isSuccess: isConfirmed,
+    data: receipt
   } = useWaitForTransactionReceipt({
     hash,
   });
@@ -193,17 +194,100 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     }
   };
 
-  // Handle transaction confirmation
+  // Handle transaction confirmation and extract gameId
   useEffect(() => {
     if (isConfirming) {
       setStatusMessage('Confirming transaction...');
-    } else if (isConfirmed && hash) {
-      setStatusMessage('Bet placed! Waiting for game ID...');
+    } else if (isConfirmed && receipt) {
+      console.log('[Receipt] Transaction confirmed, extracting gameId...', receipt);
+
+      // Extract gameId from BetPlaced event in the receipt logs
+      const betPlacedLog = receipt.logs.find((log: any) => {
+        try {
+          // Check if this is the BetPlaced event (has player and gameId)
+          return log.topics.length > 0 && log.topics[0] === '0x' + 'BetPlaced'.padEnd(64, '0'); // This is a simplified check
+        } catch {
+          return false;
+        }
+      });
+
+      if (betPlacedLog) {
+        try {
+          // Decode the gameId from the log
+          // BetPlaced event: event BetPlaced(address indexed player, uint256 indexed gameId, ...)
+          // gameId is the second indexed parameter (topics[2])
+          const gameIdHex = (betPlacedLog as any).topics[2];
+          const gameId = BigInt(gameIdHex);
+          console.log('[Receipt] Extracted gameId:', gameId.toString());
+          setCurrentGameId(gameId);
+          setStatusMessage('Bet placed! Waiting for result...');
+        } catch (err) {
+          console.error('[Receipt] Error extracting gameId:', err);
+          setStatusMessage('Bet placed! Polling for game ID...');
+          // Fallback: get the latest game ID for this player
+          setTimeout(async () => {
+            try {
+              const { createPublicClient, http } = await import('viem');
+              const { monadTestnet } = await import('../config/chains');
+
+              const publicClient = createPublicClient({
+                chain: monadTestnet,
+                transport: http('https://testnet-rpc.monad.xyz'),
+              });
+
+              const gameIds = await publicClient.readContract({
+                address: COIN_FLIP_ADDRESS,
+                abi: COIN_FLIP_ABI,
+                functionName: 'getPlayerGames',
+                args: [address],
+              }) as bigint[];
+
+              if (gameIds && gameIds.length > 0) {
+                const latestGameId = gameIds[gameIds.length - 1];
+                console.log('[Fallback] Got latest gameId:', latestGameId.toString());
+                setCurrentGameId(latestGameId);
+              }
+            } catch (err) {
+              console.error('[Fallback] Error getting gameId:', err);
+            }
+          }, 1000);
+        }
+      } else {
+        console.log('[Receipt] BetPlaced event not found in logs, using fallback...');
+        setStatusMessage('Bet placed! Polling for game ID...');
+        // Fallback: get the latest game ID for this player
+        setTimeout(async () => {
+          try {
+            const { createPublicClient, http } = await import('viem');
+            const { monadTestnet } = await import('../config/chains');
+
+            const publicClient = createPublicClient({
+              chain: monadTestnet,
+              transport: http('https://testnet-rpc.monad.xyz'),
+            });
+
+            const gameIds = await publicClient.readContract({
+              address: COIN_FLIP_ADDRESS,
+              abi: COIN_FLIP_ABI,
+              functionName: 'getPlayerGames',
+              args: [address],
+            }) as bigint[];
+
+            if (gameIds && gameIds.length > 0) {
+              const latestGameId = gameIds[gameIds.length - 1];
+              console.log('[Fallback] Got latest gameId:', latestGameId.toString());
+              setCurrentGameId(latestGameId);
+            }
+          } catch (err) {
+            console.error('[Fallback] Error getting gameId:', err);
+          }
+        }, 1000);
+      }
     } else if (error) {
       setStatusMessage(`Error: ${error.message}`);
       setIsFlipping(false);
     }
-  }, [isConfirming, isConfirmed, error, hash]);
+  }, [isConfirming, isConfirmed, error, receipt, address]);
 
   // Poll for game result once we have gameId
   useEffect(() => {
