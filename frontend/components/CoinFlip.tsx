@@ -202,7 +202,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
       console.log('[Receipt] Transaction confirmed, extracting gameId...', receipt);
 
       // Extract gameId from BetPlaced event in the receipt logs
-      const betPlacedLog = receipt.logs.find((log: any) => {
+      const betPlacedLog = receipt.logs.find((log: { topics: string[] }) => {
         try {
           // Check if this is the BetPlaced event (has player and gameId)
           return log.topics.length > 0 && log.topics[0] === '0x' + 'BetPlaced'.padEnd(64, '0'); // This is a simplified check
@@ -216,7 +216,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
           // Decode the gameId from the log
           // BetPlaced event: event BetPlaced(address indexed player, uint256 indexed gameId, ...)
           // gameId is the second indexed parameter (topics[2])
-          const gameIdHex = (betPlacedLog as any).topics[2];
+          const gameIdHex = (betPlacedLog as { topics: string[] }).topics[2];
           const gameId = BigInt(gameIdHex);
           console.log('[Receipt] Extracted gameId:', gameId.toString());
           setCurrentGameId(gameId);
