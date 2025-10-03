@@ -19,22 +19,36 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    console.log('[ThemeContext] Theme changed to:', theme);
+
     // Update localStorage and DOM when theme changes
     localStorage.setItem('theme', theme);
+    console.log('[ThemeContext] Saved to localStorage:', theme);
 
     const htmlElement = document.documentElement;
+    console.log('[ThemeContext] Current classes before:', htmlElement.className);
 
     if (theme === 'dark') {
       htmlElement.classList.add('dark');
       htmlElement.style.colorScheme = 'dark';
+      console.log('[ThemeContext] Added dark class');
     } else {
       htmlElement.classList.remove('dark');
       htmlElement.style.colorScheme = 'light';
+      console.log('[ThemeContext] Removed dark class');
     }
+
+    console.log('[ThemeContext] Current classes after:', htmlElement.className);
+    console.log('[ThemeContext] Color scheme:', htmlElement.style.colorScheme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    console.log('[ThemeContext] toggleTheme called, current theme:', theme);
+    setTheme(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light';
+      console.log('[ThemeContext] Setting new theme:', newTheme);
+      return newTheme;
+    });
   };
 
   return (
