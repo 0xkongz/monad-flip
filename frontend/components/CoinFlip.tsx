@@ -226,6 +226,8 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
           setStatusMessage('Bet placed! Polling for game ID...');
           // Fallback: get the latest game ID for this player
           setTimeout(async () => {
+            if (!address) return;
+
             try {
               const { createPublicClient, http } = await import('viem');
               const { monadTestnet } = await import('../config/chains');
@@ -239,7 +241,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
                 address: COIN_FLIP_ADDRESS,
                 abi: COIN_FLIP_ABI,
                 functionName: 'getPlayerGames',
-                args: address ? [address] : undefined,
+                args: [address],
               }) as bigint[];
 
               if (gameIds && gameIds.length > 0) {
@@ -257,6 +259,8 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
         setStatusMessage('Bet placed! Polling for game ID...');
         // Fallback: get the latest game ID for this player
         setTimeout(async () => {
+          if (!address) return;
+
           try {
             const { createPublicClient, http } = await import('viem');
             const { monadTestnet } = await import('../config/chains');
@@ -270,7 +274,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
               address: COIN_FLIP_ADDRESS,
               abi: COIN_FLIP_ABI,
               functionName: 'getPlayerGames',
-              args: address ? [address] : undefined,
+              args: [address],
             }) as bigint[];
 
             if (gameIds && gameIds.length > 0) {
