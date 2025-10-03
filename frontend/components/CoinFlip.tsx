@@ -76,49 +76,47 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     abi: COIN_FLIP_ABI,
     eventName: 'GameResult',
     onLogs(logs: readonly unknown[]) {
-      console.log('GameResult event received:', logs);
-      console.log('isFlipping (ref):', isFlippingRef.current);
-      console.log('currentGameId (ref):', currentGameIdRef.current?.toString());
+      console.log('[GameResult] Event received, processing...', logs);
 
       logs.forEach((log: unknown) => {
         const typedLog = log as { args: { player: string; gameId: bigint; result: number; won: boolean; payout: bigint } };
         const { player, gameId, result, won, payout } = typedLog.args;
 
-        console.log('Processing GameResult:', {
+        console.log('[GameResult] Event details:', {
           player,
           gameId: gameId?.toString(),
           result,
           won,
           payout: payout?.toString(),
-          isCurrentlyFlipping: isFlippingRef.current,
-          storedGameId: currentGameIdRef.current?.toString()
+          currentAddress: address,
+          isFlipping: isFlippingRef.current,
+          currentGameId: currentGameIdRef.current?.toString()
         });
 
-        // Only process if it's our game - check player address match
-        if (player?.toLowerCase() === address?.toLowerCase()) {
-          // Check if this is the game we're waiting for
-          const isOurGame = currentGameIdRef.current === null || gameId === currentGameIdRef.current;
-          console.log('Is our game:', isOurGame);
+        // Only process if it's our player and we're currently waiting for a result
+        if (player?.toLowerCase() === address?.toLowerCase() && isFlippingRef.current) {
+          console.log('[GameResult] This is our game! Processing result...');
 
-          if (isOurGame && isFlippingRef.current) {
-            const resultSide = result === 0 ? 'Heads' : 'Tails';
+          const resultSide = result === 0 ? 'Heads' : 'Tails';
 
-            if (won) {
-              setStatusMessage(`🎉 You won! Result: ${resultSide}. Payout: ${formatEther(payout)} MON`);
-            } else {
-              setStatusMessage(`😢 You lost. Result: ${resultSide}. Better luck next time!`);
-            }
-
-            // Immediately stop flipping and update UI
-            setIsFlipping(false);
-            setCurrentGameId(null);
-            onGameComplete?.();
-
-            // Clear message after 5 seconds
-            setTimeout(() => {
-              setStatusMessage('');
-            }, 5000);
+          if (won) {
+            setStatusMessage(`🎉 You won! Result: ${resultSide}. Payout: ${formatEther(payout)} MON`);
+          } else {
+            setStatusMessage(`😢 You lost. Result: ${resultSide}. Better luck next time!`);
           }
+
+          // Immediately stop flipping and update UI
+          console.log('[GameResult] Stopping animation and clearing state');
+          setIsFlipping(false);
+          setCurrentGameId(null);
+          onGameComplete?.();
+
+          // Clear message after 5 seconds
+          setTimeout(() => {
+            setStatusMessage('');
+          }, 5000);
+        } else {
+          console.log('[GameResult] Not our game or not flipping, ignoring');
         }
       });
     },
@@ -186,22 +184,18 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     } else if (isConfirmed && hash) {
       setStatusMessage('Bet placed! Waiting for Pyth Entropy to reveal result...');
 
-      // Extract gameId from transaction logs
-      const extractGameId = async () => {
-        try {
-          // We'll get the gameId from the BetPlaced event via the watcher
-          // For now, just set a placeholder - the GameResult event will match it
-        } catch (err) {
-          console.error('Error extracting gameId:', err);
-        }
-      };
+      // Start polling for result after 3 seconds (give time for event to fire)
+      const pollTimeout = setTimeout(() => {
+        console.log('Starting fallback polling for game result...');
+        onGameComplete?.();
+      }, 15000); // 15 second timeout fallback
 
-      extractGameId();
+      return () => clearTimeout(pollTimeout);
     } else if (error) {
       setStatusMessage(`Error: ${error.message}`);
       setIsFlipping(false);
     }
-  }, [isConfirming, isConfirmed, error, hash]);
+  }, [isConfirming, isConfirmed, error, hash, onGameComplete]);
 
   // Watch for BetPlaced event to get gameId
   useWatchContractEvent({
