@@ -1,4 +1,4 @@
-export const COIN_FLIP_ADDRESS = '0xF73329ea33Cc8447f00ECAaD90C2A255319aB75E' as const;
+export const COIN_FLIP_ADDRESS = '0x54Af6f5dcCB7CE0654cA80Cb0B8d1348752beA57' as const;
 
 export const COIN_FLIP_ABI = [
   {

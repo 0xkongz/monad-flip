@@ -30,3 +30,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch game' }, { status: 500 });
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const { gameId } = await request.json();
+
+    if (!gameId) {
+      return NextResponse.json({ error: 'Game ID is required' }, { status: 400 });
+    }
+
+    const game = await publicClient.readContract({
+      address: COIN_FLIP_ADDRESS,
+      abi: COIN_FLIP_ABI,
+      functionName: 'getGame',
+      args: [BigInt(gameId)],
+    });
+
+    return NextResponse.json(game);
+  } catch (error) {
+    console.error('Error fetching game:', error);
+    return NextResponse.json({ error: 'Failed to fetch game' }, { status: 500 });
+  }
+}

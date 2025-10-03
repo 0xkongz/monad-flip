@@ -63,26 +63,33 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     abi: COIN_FLIP_ABI,
     eventName: 'GameResult',
     onLogs(logs: readonly unknown[]) {
+      console.log('GameResult event received:', logs);
       logs.forEach((log: unknown) => {
         const typedLog = log as { args: { player: string; gameId: bigint; result: number; won: boolean; payout: bigint } };
         const { player, gameId, result, won, payout } = typedLog.args;
 
-        // Only process if it's our game
-        if (currentGameId !== null && gameId === currentGameId && player?.toLowerCase() === address?.toLowerCase()) {
-          const resultSide = result === 0 ? 'Heads' : 'Tails';
+        console.log('Processing GameResult:', { player, gameId: gameId?.toString(), result, won, payout: payout?.toString() });
+        console.log('Current state:', { currentGameId: currentGameId?.toString(), address });
 
-          if (won) {
-            setStatusMessage(`🎉 You won! Result: ${resultSide}. Payout: ${formatEther(payout)} MON`);
-          } else {
-            setStatusMessage(`😢 You lost. Result: ${resultSide}. Better luck next time!`);
+        // Only process if it's our game - check player address match
+        if (player?.toLowerCase() === address?.toLowerCase()) {
+          // Also match gameId if we have it, but don't require it
+          if (currentGameId === null || gameId === currentGameId) {
+            const resultSide = result === 0 ? 'Heads' : 'Tails';
+
+            if (won) {
+              setStatusMessage(`🎉 You won! Result: ${resultSide}. Payout: ${formatEther(payout)} MON`);
+            } else {
+              setStatusMessage(`😢 You lost. Result: ${resultSide}. Better luck next time!`);
+            }
+
+            setTimeout(() => {
+              setIsFlipping(false);
+              setStatusMessage('');
+              setCurrentGameId(null);
+              onGameComplete?.();
+            }, 5000);
           }
-
-          setTimeout(() => {
-            setIsFlipping(false);
-            setStatusMessage('');
-            setCurrentGameId(null);
-            onGameComplete?.();
-          }, 5000);
         }
       });
     },

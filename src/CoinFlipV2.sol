@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.30;
 
 import "@pythnetwork/entropy-sdk-solidity/IEntropyV2.sol";
 import "@pythnetwork/entropy-sdk-solidity/IEntropyConsumer.sol";
@@ -16,6 +16,7 @@ contract CoinFlipV2 is IEntropyConsumer {
     error InvalidChoice();
     error BetTooLow();
     error BetTooHigh();
+    error BetTooLowForEntropyFee();
     error InsufficientHouseBalance();
     error OnlyOwner();
     error PayoutFailed();
@@ -115,6 +116,10 @@ contract CoinFlipV2 is IEntropyConsumer {
         // Validate bet amount
         if (betAmount < minBet) revert BetTooLow();
         if (betAmount > maxBet) revert BetTooHigh();
+
+        // Ensure potential winnings cover entropy fee
+        uint256 netWinnings = (betAmount * 90) / 100; // Win amount (excluding original bet)
+        if (netWinnings <= entropyFee) revert BetTooLowForEntropyFee();
 
         uint256 potentialPayout = (betAmount * 190) / 100; // 1.9x payout
 

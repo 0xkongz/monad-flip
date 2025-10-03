@@ -12,3 +12,12 @@ docs/
 
 # Dotenv file
 .env
+
+# Claude Code files
+.claude/
+
+# Dependencies
+node_modules/
+
+# Broadcast logs
+broadcast/
