@@ -28,6 +28,8 @@ export function GameHistory() {
   const [games, setGames] = useState<GameWithId[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedGames, setExpandedGames] = useState<Set<string>>(new Set());
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const [showAllGames, setShowAllGames] = useState(false);
 
   // Get player's game IDs
   const { data: gameIds, refetch: refetchGameIds } = useReadContract({
@@ -159,111 +161,147 @@ export function GameHistory() {
     });
   };
 
+  // Show only last 5 games by default
+  const displayedGames = showAllGames ? games : games.slice(0, 5);
+  const hasMoreGames = games.length > 5;
+
   return (
     <div className="w-full max-w-2xl mx-auto p-8 bg-white/5 dark:bg-gray-800/50 backdrop-blur-xl border border-white/10 dark:border-gray-700/50 rounded-3xl shadow-2xl">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Game History</h2>
+      {/* Header with Collapse Button */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Game History</h2>
+        <button
+          onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
+          className="p-2 rounded-lg hover:bg-white/10 dark:hover:bg-gray-700/50 transition-colors"
+          aria-label="Toggle history"
+        >
+          <svg
+            className={`w-5 h-5 text-gray-600 dark:text-white/70 transition-transform ${isHistoryCollapsed ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
 
-      <div className="space-y-2">
-        {games.map(({ id, game }) => {
-          const isExpanded = expandedGames.has(id.toString());
+      {/* Collapsible Content */}
+      {!isHistoryCollapsed && (
+        <>
+          <div className="space-y-2">
+            {displayedGames.map(({ id, game }) => {
+              const isExpanded = expandedGames.has(id.toString());
 
-          return (
-            <div
-              key={id.toString()}
-              className="bg-white/5 dark:bg-gray-700/30 backdrop-blur-xl border border-white/10 dark:border-gray-600/50 rounded-xl overflow-hidden transition-all duration-200"
-            >
-              {/* Collapsed View - Single Line */}
-              <button
-                onClick={() => toggleExpanded(id.toString())}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/10 dark:hover:bg-gray-600/30 transition-colors"
-              >
-                <div className="flex items-center gap-4 flex-1">
-                  {/* Game Number */}
-                  <span className="text-sm text-gray-600 dark:text-white/50 font-mono">#{id.toString()}</span>
-
-                  {/* Bet Amount */}
-                  <span className="text-sm text-gray-700 dark:text-white/70">{formatEther(game.betAmount)} MON</span>
-
-                  {/* Result */}
-                  <span className={`text-sm font-medium ${
-                    game.state === 1
-                      ? (game.won ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')
-                      : 'text-yellow-600 dark:text-yellow-400'
-                  }`}>
-                    {game.state === 1 ? (game.won ? 'WIN' : 'LOSE') : 'PENDING'}
-                  </span>
-                </div>
-
-                {/* Profit/Loss */}
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm font-semibold ${
-                    game.won ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                  }`}>
-                    {game.state === 1
-                      ? (game.won ? `+${formatEther(game.payout)} MON` : `-${formatEther(game.betAmount)} MON`)
-                      : '-'
-                    }
-                  </span>
-
-                  {/* Expand Arrow */}
-                  <svg
-                    className={`w-5 h-5 text-gray-500 dark:text-white/50 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+              return (
+                <div
+                  key={id.toString()}
+                  className="bg-white/5 dark:bg-gray-700/30 backdrop-blur-xl border border-white/10 dark:border-gray-600/50 rounded-xl overflow-hidden transition-all duration-200"
+                >
+                  {/* Collapsed View - Single Line */}
+                  <button
+                    onClick={() => toggleExpanded(id.toString())}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/10 dark:hover:bg-gray-600/30 transition-colors"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </button>
+                    <div className="flex items-center gap-4 flex-1">
+                      {/* Game Number */}
+                      <span className="text-sm text-gray-600 dark:text-white/50 font-mono">#{id.toString()}</span>
 
-              {/* Expanded View - Details */}
-              {isExpanded && (
-                <div className="px-4 pb-4 pt-2 border-t border-white/10 dark:border-gray-600/50 space-y-3">
-                  {/* Timestamp */}
-                  <div className="text-xs text-gray-500 dark:text-white/40">
-                    {formatTimestamp(game.timestamp)}
-                  </div>
+                      {/* Bet Amount */}
+                      <span className="text-sm text-gray-700 dark:text-white/70">{formatEther(game.betAmount)} MON</span>
 
-                  {/* Game Details */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-white/50 mb-1">Your Choice</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{getChoiceText(game.playerChoice)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-white/50 mb-1">Result</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {game.state === 1 ? getResultText(game.result) : '-'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Financial Details */}
-                  <div className="pt-2 border-t border-white/10 dark:border-gray-600/50 space-y-1">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-500 dark:text-white/50">Bet Amount</span>
-                      <span className="text-gray-700 dark:text-white/70 font-medium">{formatEther(game.betAmount)} MON</span>
-                    </div>
-                    {entropyFee && (
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-gray-500 dark:text-white/50">Entropy Fee</span>
-                        <span className="text-gray-700 dark:text-white/70">{formatEther(BigInt(entropyFee))} MON</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center text-xs font-semibold">
-                      <span className="text-gray-600 dark:text-white/60">Total Paid</span>
-                      <span className="text-gray-800 dark:text-white/80">
-                        {entropyFee ? formatEther(game.betAmount + BigInt(entropyFee)) : formatEther(game.betAmount)} MON
+                      {/* Result */}
+                      <span className={`text-sm font-medium ${
+                        game.state === 1
+                          ? (game.won ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')
+                          : 'text-yellow-600 dark:text-yellow-400'
+                      }`}>
+                        {game.state === 1 ? (game.won ? 'WIN' : 'LOSE') : 'PENDING'}
                       </span>
                     </div>
-                  </div>
+
+                    {/* Profit/Loss */}
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-semibold ${
+                        game.won ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {game.state === 1
+                          ? (game.won ? `+${formatEther(game.payout)} MON` : `-${formatEther(game.betAmount)} MON`)
+                          : '-'
+                        }
+                      </span>
+
+                      {/* Expand Arrow */}
+                      <svg
+                        className={`w-5 h-5 text-gray-500 dark:text-white/50 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+
+                  {/* Expanded View - Details */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-2 border-t border-white/10 dark:border-gray-600/50 space-y-3">
+                      {/* Timestamp */}
+                      <div className="text-xs text-gray-500 dark:text-white/40">
+                        {formatTimestamp(game.timestamp)}
+                      </div>
+
+                      {/* Game Details */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-white/50 mb-1">Your Choice</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{getChoiceText(game.playerChoice)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-white/50 mb-1">Result</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {game.state === 1 ? getResultText(game.result) : '-'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Financial Details */}
+                      <div className="pt-2 border-t border-white/10 dark:border-gray-600/50 space-y-1">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-500 dark:text-white/50">Bet Amount</span>
+                          <span className="text-gray-700 dark:text-white/70 font-medium">{formatEther(game.betAmount)} MON</span>
+                        </div>
+                        {entropyFee && (
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-gray-500 dark:text-white/50">Entropy Fee</span>
+                            <span className="text-gray-700 dark:text-white/70">{formatEther(BigInt(entropyFee))} MON</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center text-xs font-semibold">
+                          <span className="text-gray-600 dark:text-white/60">Total Paid</span>
+                          <span className="text-gray-800 dark:text-white/80">
+                            {entropyFee ? formatEther(game.betAmount + BigInt(entropyFee)) : formatEther(game.betAmount)} MON
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+
+          {/* Show More/Less Button */}
+          {hasMoreGames && (
+            <button
+              onClick={() => setShowAllGames(!showAllGames)}
+              className="w-full mt-4 px-4 py-3 bg-white/5 dark:bg-gray-700/30 backdrop-blur-xl border border-white/10 dark:border-gray-600/50 rounded-xl hover:bg-white/10 dark:hover:bg-gray-600/30 transition-colors text-sm font-medium text-gray-700 dark:text-white/70"
+            >
+              {showAllGames ? `Hide ${games.length - 5} older games` : `Show ${games.length - 5} more games`}
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }
