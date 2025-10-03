@@ -5,10 +5,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
 
-  console.log('[ThemeToggle] Rendering with theme:', theme);
-
   const handleClick = () => {
-    console.log('[ThemeToggle] Button clicked!');
+    console.log('[ThemeToggle] Button clicked! Current theme:', theme);
     toggleTheme();
   };
 

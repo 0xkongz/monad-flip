@@ -11,44 +11,42 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+// Helper function to set theme
+function setTheme(theme: Theme) {
+  localStorage.setItem('theme', theme);
+  document.documentElement.className = theme;
+  console.log('[setTheme] Set theme to:', theme, 'className:', document.documentElement.className);
+}
+
+// Helper function to keep theme on initial load
+function keepTheme() {
+  const theme = localStorage.getItem('theme') as Theme | null;
+  if (theme) {
+    document.documentElement.className = theme;
+    console.log('[keepTheme] Restored theme:', theme);
+    return theme;
+  }
+  // Default to light theme
+  document.documentElement.className = 'light';
+  console.log('[keepTheme] No saved theme, defaulting to light');
+  return 'light';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Initialize with function to avoid calling during SSR
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'light';
-    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-  });
+  const [theme, setThemeState] = useState<Theme>('light');
 
+  // Initialize theme on mount
   useEffect(() => {
-    console.log('[ThemeContext] Theme changed to:', theme);
-
-    // Update localStorage and DOM when theme changes
-    localStorage.setItem('theme', theme);
-    console.log('[ThemeContext] Saved to localStorage:', theme);
-
-    const htmlElement = document.documentElement;
-    console.log('[ThemeContext] Current classes before:', htmlElement.className);
-
-    if (theme === 'dark') {
-      htmlElement.classList.add('dark');
-      htmlElement.style.colorScheme = 'dark';
-      console.log('[ThemeContext] Added dark class');
-    } else {
-      htmlElement.classList.remove('dark');
-      htmlElement.style.colorScheme = 'light';
-      console.log('[ThemeContext] Removed dark class');
-    }
-
-    console.log('[ThemeContext] Current classes after:', htmlElement.className);
-    console.log('[ThemeContext] Color scheme:', htmlElement.style.colorScheme);
-  }, [theme]);
+    const currentTheme = keepTheme();
+    setThemeState(currentTheme);
+  }, []);
 
   const toggleTheme = () => {
-    console.log('[ThemeContext] toggleTheme called, current theme:', theme);
-    setTheme(prev => {
-      const newTheme = prev === 'light' ? 'dark' : 'light';
-      console.log('[ThemeContext] Setting new theme:', newTheme);
-      return newTheme;
-    });
+    console.log('[toggleTheme] Current theme:', theme);
+    const newTheme: Theme = theme === 'light' ? 'dark' : 'light';
+    console.log('[toggleTheme] Switching to:', newTheme);
+    setTheme(newTheme);
+    setThemeState(newTheme);
   };
 
   return (
