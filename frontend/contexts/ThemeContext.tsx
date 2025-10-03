@@ -11,28 +11,17 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+// Get theme from DOM (set by blocking script) or default to light
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'light';
-
-  const savedTheme = localStorage.getItem('theme') as Theme;
-  if (savedTheme) return savedTheme;
-
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light');
-  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
-    setMounted(true);
-    const initialTheme = getInitialTheme();
-    setTheme(initialTheme);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-
+    // Update localStorage and DOM when theme changes
     localStorage.setItem('theme', theme);
 
     if (theme === 'dark') {
@@ -40,7 +29,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [theme, mounted]);
+  }, [theme]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
