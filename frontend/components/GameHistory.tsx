@@ -39,6 +39,13 @@ export function GameHistory() {
     },
   });
 
+  // Get entropy fee
+  const { data: entropyFee } = useReadContract({
+    address: COIN_FLIP_ADDRESS,
+    abi: COIN_FLIP_ABI,
+    functionName: 'getEntropyFee',
+  });
+
   // Fetch individual game details
   useEffect(() => {
     const fetchGames = async () => {
@@ -176,7 +183,7 @@ export function GameHistory() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 mb-3">
               <div>
                 <p className="text-xs text-white/50 mb-1">Bet Amount</p>
                 <p className="text-base font-medium text-white">{formatEther(game.betAmount)} MON</p>
@@ -192,6 +199,21 @@ export function GameHistory() {
                   }
                 </p>
               </div>
+            </div>
+
+            <div className="pt-3 border-t border-white/10">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-white/50">Total Paid (Bet + Entropy Fee)</span>
+                <span className="text-white/70 font-medium">
+                  {entropyFee ? `${formatEther(game.betAmount + BigInt(entropyFee))} MON` : `${formatEther(game.betAmount)} MON`}
+                </span>
+              </div>
+              {entropyFee && (
+                <div className="flex justify-between items-center text-xs mt-1">
+                  <span className="text-white/40">Pyth Entropy Fee</span>
+                  <span className="text-white/50">{formatEther(BigInt(entropyFee))} MON</span>
+                </div>
+              )}
             </div>
           </div>
         ))}

@@ -83,11 +83,14 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
               setStatusMessage(`😢 You lost. Result: ${resultSide}. Better luck next time!`);
             }
 
+            // Immediately stop flipping and update UI
+            setIsFlipping(false);
+            setCurrentGameId(null);
+            onGameComplete?.();
+
+            // Clear message after 5 seconds
             setTimeout(() => {
-              setIsFlipping(false);
               setStatusMessage('');
-              setCurrentGameId(null);
-              onGameComplete?.();
             }, 5000);
           }
         }
