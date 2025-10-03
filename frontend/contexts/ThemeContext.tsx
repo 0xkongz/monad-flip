@@ -20,26 +20,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Update localStorage and DOM when theme changes
-    console.log('[ThemeContext] Theme changed to:', theme);
     localStorage.setItem('theme', theme);
 
+    const htmlElement = document.documentElement;
+
     if (theme === 'dark') {
-      console.log('[ThemeContext] Adding dark class');
-      document.documentElement.classList.add('dark');
+      htmlElement.classList.add('dark');
+      htmlElement.style.colorScheme = 'dark';
     } else {
-      console.log('[ThemeContext] Removing dark class');
-      document.documentElement.classList.remove('dark');
+      htmlElement.classList.remove('dark');
+      htmlElement.style.colorScheme = 'light';
     }
-    console.log('[ThemeContext] Final classes:', document.documentElement.className);
   }, [theme]);
 
   const toggleTheme = () => {
-    console.log('[ThemeContext] toggleTheme called, current:', theme);
-    setTheme(prev => {
-      const newTheme = prev === 'light' ? 'dark' : 'light';
-      console.log('[ThemeContext] Changing from', prev, 'to', newTheme);
-      return newTheme;
-    });
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
   return (
