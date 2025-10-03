@@ -221,7 +221,16 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
             abi: COIN_FLIP_ABI,
             functionName: 'getGame',
             args: [currentGameIdRef.current],
-          }) as any;
+          }) as {
+            player: string;
+            betAmount: bigint;
+            playerChoice: number;
+            result: number;
+            won: boolean;
+            payout: bigint;
+            timestamp: bigint;
+            state: number;
+          };
 
           console.log('[Polling] Game state:', game);
 
