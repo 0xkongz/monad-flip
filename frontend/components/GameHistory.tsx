@@ -42,7 +42,7 @@ export function GameHistory() {
   // Fetch individual game details
   useEffect(() => {
     const fetchGames = async () => {
-      if (!gameIds || gameIds.length === 0) {
+      if (!gameIds || !Array.isArray(gameIds) || gameIds.length === 0) {
         setGames([]);
         setIsLoading(false);
         return;
@@ -51,19 +51,25 @@ export function GameHistory() {
       setIsLoading(true);
       const gamesData: GameWithId[] = [];
 
-      // Fetch each game individually
+      // Fetch each game individually using viem directly
+      const { createPublicClient, http } = await import('viem');
+      const { monadTestnet } = await import('../config/chains');
+
+      const publicClient = createPublicClient({
+        chain: monadTestnet,
+        transport: http('https://testnet-rpc.monad.xyz'),
+      });
+
       for (const gameId of gameIds) {
         try {
-          const response = await fetch('/api/getGame', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ gameId: gameId.toString() }),
-          });
+          const game = await publicClient.readContract({
+            address: COIN_FLIP_ADDRESS,
+            abi: COIN_FLIP_ABI,
+            functionName: 'getGame',
+            args: [gameId],
+          }) as Game;
 
-          if (response.ok) {
-            const game = await response.json();
-            gamesData.push({ id: gameId, game });
-          }
+          gamesData.push({ id: gameId, game });
         } catch (error) {
           console.error(`Error fetching game ${gameId}:`, error);
         }

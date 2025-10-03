@@ -110,6 +110,14 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
       return;
     }
 
+    // Check if bet is profitable after entropy fee
+    const entropyFeeEth = entropyFee ? parseFloat(formatEther(BigInt(entropyFee))) : 0;
+    const potentialWinnings = betValue * 0.9; // 90% win amount
+    if (potentialWinnings <= entropyFeeEth) {
+      setStatusMessage(`Bet too low! Minimum ${(entropyFeeEth / 0.9).toFixed(4)} MON required to cover entropy fee of ${entropyFeeEth.toFixed(4)} MON`);
+      return;
+    }
+
     try {
       setIsFlipping(true);
       setStatusMessage('Placing bet...');
@@ -126,7 +134,18 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
       });
     } catch (err) {
       console.error('Error placing bet:', err);
-      setStatusMessage('Failed to place bet');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to place bet';
+
+      // Parse common error messages
+      if (errorMessage.includes('BetTooLowForEntropyFee')) {
+        setStatusMessage(`Bet too low to cover entropy fee! Increase your bet.`);
+      } else if (errorMessage.includes('InsufficientHouseBalance')) {
+        setStatusMessage('Insufficient house balance. Please try a smaller bet.');
+      } else if (errorMessage.includes('user rejected')) {
+        setStatusMessage('Transaction rejected by user');
+      } else {
+        setStatusMessage('Failed to place bet');
+      }
       setIsFlipping(false);
     }
   };
