@@ -160,6 +160,14 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
       const betWei = parseEther(betAmount);
       const totalValue = entropyFee ? betWei + BigInt(entropyFee) : betWei;
 
+      console.log('[Bet] Placing bet:', {
+        betAmount,
+        betWei: betWei.toString(),
+        entropyFee: entropyFee?.toString(),
+        totalValue: totalValue.toString(),
+        selectedSide
+      });
+
       writeContract({
         address: COIN_FLIP_ADDRESS,
         abi: COIN_FLIP_ABI,
@@ -172,41 +180,81 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to place bet';
 
       // Parse common error messages
-      if (errorMessage.includes('BetTooLowForEntropyFee')) {
+      if (errorMessage.includes('BetTooLowForEntropyFee') || errorMessage.includes('BetTooLow')) {
         setStatusMessage(`Bet too low to cover entropy fee! Increase your bet.`);
       } else if (errorMessage.includes('InsufficientHouseBalance')) {
         setStatusMessage('Insufficient house balance. Please try a smaller bet.');
       } else if (errorMessage.includes('user rejected')) {
         setStatusMessage('Transaction rejected by user');
       } else {
-        setStatusMessage('Failed to place bet');
+        setStatusMessage(`Failed to place bet: ${errorMessage.substring(0, 100)}`);
       }
       setIsFlipping(false);
     }
   };
 
-  // Handle transaction confirmation
+  // Handle transaction confirmation and poll for result
   useEffect(() => {
     if (isConfirming) {
       setStatusMessage('Confirming transaction...');
-    } else if (isConfirmed && hash) {
+    } else if (isConfirmed && hash && currentGameIdRef.current !== null) {
       setStatusMessage('Bet placed! Waiting for Pyth Entropy to reveal result...');
 
-      // Fallback timeout in case event doesn't fire
-      fallbackTimeoutRef.current = setTimeout(() => {
-        console.log('[Fallback] Timeout reached - clearing stuck state and refreshing history');
-        setIsFlipping(false);
-        setCurrentGameId(null);
-        setStatusMessage('');
-        onGameComplete?.();
-      }, 10000); // 10 second timeout fallback
-
-      return () => {
-        if (fallbackTimeoutRef.current) {
-          clearTimeout(fallbackTimeoutRef.current);
-          fallbackTimeoutRef.current = null;
+      // Poll for game result
+      const pollInterval = setInterval(async () => {
+        if (!currentGameIdRef.current) {
+          clearInterval(pollInterval);
+          return;
         }
-      };
+
+        try {
+          const { createPublicClient, http } = await import('viem');
+          const { monadTestnet } = await import('../config/chains');
+
+          const publicClient = createPublicClient({
+            chain: monadTestnet,
+            transport: http('https://testnet-rpc.monad.xyz'),
+          });
+
+          const game = await publicClient.readContract({
+            address: COIN_FLIP_ADDRESS,
+            abi: COIN_FLIP_ABI,
+            functionName: 'getGame',
+            args: [currentGameIdRef.current],
+          }) as any;
+
+          console.log('[Polling] Game state:', game);
+
+          // Check if game is completed (state === 1)
+          if (game.state === 1) {
+            console.log('[Polling] Game completed! Showing result...');
+            clearInterval(pollInterval);
+
+            const resultSide = game.result === 0 ? 'Heads' : 'Tails';
+            const won = game.won;
+
+            if (won) {
+              setStatusMessage(`🎉 YOU WIN! Result: ${resultSide}. Payout: ${formatEther(game.payout)} MON`);
+            } else {
+              setStatusMessage(`😢 YOU LOSE! Result: ${resultSide}. Better luck next time!`);
+            }
+
+            setIsFlipping(false);
+            setCurrentGameId(null);
+            onGameComplete?.();
+
+            // Clear message after 5 seconds
+            setTimeout(() => {
+              setStatusMessage('');
+            }, 5000);
+          }
+        } catch (err) {
+          console.error('[Polling] Error:', err);
+        }
+      }, 2000); // Poll every 2 seconds
+
+      // Cleanup on unmount
+      return () => clearInterval(pollInterval);
     } else if (error) {
       setStatusMessage(`Error: ${error.message}`);
       setIsFlipping(false);
