@@ -27,6 +27,7 @@ export function GameHistory() {
   const { address, isConnected } = useAccount();
   const [games, setGames] = useState<GameWithId[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedGames, setExpandedGames] = useState<Set<string>>(new Set());
 
   // Get player's game IDs
   const { data: gameIds, refetch: refetchGameIds } = useReadContract({
@@ -146,77 +147,122 @@ export function GameHistory() {
     return date.toLocaleString();
   };
 
+  const toggleExpanded = (gameId: string) => {
+    setExpandedGames(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(gameId)) {
+        newSet.delete(gameId);
+      } else {
+        newSet.add(gameId);
+      }
+      return newSet;
+    });
+  };
+
   return (
-    <div className="w-full max-w-2xl mx-auto p-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
-      <h2 className="text-2xl font-bold text-white mb-6">Game History</h2>
+    <div className="w-full max-w-2xl mx-auto p-8 bg-white/5 dark:bg-gray-800/50 backdrop-blur-xl border border-white/10 dark:border-gray-700/50 rounded-3xl shadow-2xl">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Game History</h2>
 
-      <div className="space-y-4">
-        {games.map(({ id, game }) => (
-          <div
-            key={id.toString()}
-            className="p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg hover:bg-white/10 transition-all duration-200"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-sm text-white/50">Game #{id.toString()}</p>
-                <p className="text-xs text-white/40 mt-1">{formatTimestamp(game.timestamp)}</p>
-              </div>
-              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                game.state === 1
-                  ? (game.won ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30')
-                  : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-              }`}>
-                {getStateText(game.state)}
-              </div>
-            </div>
+      <div className="space-y-2">
+        {games.map(({ id, game }) => {
+          const isExpanded = expandedGames.has(id.toString());
 
-            <div className="grid grid-cols-2 gap-4 mb-3">
-              <div>
-                <p className="text-xs text-white/50 mb-1">Your Choice</p>
-                <p className="text-lg font-semibold text-white">{getChoiceText(game.playerChoice)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-white/50 mb-1">Result</p>
-                <p className="text-lg font-semibold text-white">
-                  {game.state === 1 ? getResultText(game.result) : '-'}
-                </p>
-              </div>
-            </div>
+          return (
+            <div
+              key={id.toString()}
+              className="bg-white/5 dark:bg-gray-700/30 backdrop-blur-xl border border-white/10 dark:border-gray-600/50 rounded-xl overflow-hidden transition-all duration-200"
+            >
+              {/* Collapsed View - Single Line */}
+              <button
+                onClick={() => toggleExpanded(id.toString())}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/10 dark:hover:bg-gray-600/30 transition-colors"
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  {/* Game Number */}
+                  <span className="text-sm text-gray-600 dark:text-white/50 font-mono">#{id.toString()}</span>
 
-            <div className="grid grid-cols-2 gap-4 mb-3">
-              <div>
-                <p className="text-xs text-white/50 mb-1">Bet Amount</p>
-                <p className="text-base font-medium text-white">{formatEther(game.betAmount)} MON</p>
-              </div>
-              <div>
-                <p className="text-xs text-white/50 mb-1">
-                  {game.won ? 'Payout' : 'Lost'}
-                </p>
-                <p className={`text-base font-medium ${game.won ? 'text-green-400' : 'text-red-400'}`}>
-                  {game.state === 1
-                    ? (game.won ? `+${formatEther(game.payout)} MON` : `-${formatEther(game.betAmount)} MON`)
-                    : '-'
-                  }
-                </p>
-              </div>
-            </div>
+                  {/* Bet Amount */}
+                  <span className="text-sm text-gray-700 dark:text-white/70">{formatEther(game.betAmount)} MON</span>
 
-            <div className="pt-3 border-t border-white/10">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-white/50">Total Paid (Bet + Entropy Fee)</span>
-                <span className="text-white/70 font-medium">
-                  {entropyFee ? `${formatEther(game.betAmount + BigInt(entropyFee))} MON` : `${formatEther(game.betAmount)} MON`}
-                </span>
-              </div>
-              {entropyFee && (
-                <div className="flex justify-between items-center text-xs mt-1">
-                  <span className="text-white/40">Pyth Entropy Fee</span>
-                  <span className="text-white/50">{formatEther(BigInt(entropyFee))} MON</span>
+                  {/* Result */}
+                  <span className={`text-sm font-medium ${
+                    game.state === 1
+                      ? (game.won ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')
+                      : 'text-yellow-600 dark:text-yellow-400'
+                  }`}>
+                    {game.state === 1 ? (game.won ? 'WIN' : 'LOSE') : 'PENDING'}
+                  </span>
+                </div>
+
+                {/* Profit/Loss */}
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm font-semibold ${
+                    game.won ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {game.state === 1
+                      ? (game.won ? `+${formatEther(game.payout)} MON` : `-${formatEther(game.betAmount)} MON`)
+                      : '-'
+                    }
+                  </span>
+
+                  {/* Expand Arrow */}
+                  <svg
+                    className={`w-5 h-5 text-gray-500 dark:text-white/50 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </button>
+
+              {/* Expanded View - Details */}
+              {isExpanded && (
+                <div className="px-4 pb-4 pt-2 border-t border-white/10 dark:border-gray-600/50 space-y-3">
+                  {/* Timestamp */}
+                  <div className="text-xs text-gray-500 dark:text-white/40">
+                    {formatTimestamp(game.timestamp)}
+                  </div>
+
+                  {/* Game Details */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-white/50 mb-1">Your Choice</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{getChoiceText(game.playerChoice)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-white/50 mb-1">Result</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {game.state === 1 ? getResultText(game.result) : '-'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Financial Details */}
+                  <div className="pt-2 border-t border-white/10 dark:border-gray-600/50 space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-500 dark:text-white/50">Bet Amount</span>
+                      <span className="text-gray-700 dark:text-white/70 font-medium">{formatEther(game.betAmount)} MON</span>
+                    </div>
+                    {entropyFee && (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500 dark:text-white/50">Entropy Fee</span>
+                        <span className="text-gray-700 dark:text-white/70">{formatEther(BigInt(entropyFee))} MON</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-xs font-semibold">
+                      <span className="text-gray-600 dark:text-white/60">Total Paid</span>
+                      <span className="text-gray-800 dark:text-white/80">
+                        {entropyFee ? formatEther(game.betAmount + BigInt(entropyFee)) : formatEther(game.betAmount)} MON
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
