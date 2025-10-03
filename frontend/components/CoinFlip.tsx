@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useWatchContractEvent } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { COIN_FLIP_ADDRESS, COIN_FLIP_ABI } from '../config/contract';
@@ -20,6 +20,19 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
   const [statusMessage, setStatusMessage] = useState('');
   const [isFlipping, setIsFlipping] = useState(false);
   const [currentGameId, setCurrentGameId] = useState<bigint | null>(null);
+
+  // Use refs to avoid stale closures in event handlers
+  const isFlippingRef = useRef(false);
+  const currentGameIdRef = useRef<bigint | null>(null);
+
+  // Sync refs with state
+  useEffect(() => {
+    isFlippingRef.current = isFlipping;
+  }, [isFlipping]);
+
+  useEffect(() => {
+    currentGameIdRef.current = currentGameId;
+  }, [currentGameId]);
 
   const isWrongNetwork = isConnected && chain?.id !== monadTestnet.id;
 
@@ -64,17 +77,30 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
     eventName: 'GameResult',
     onLogs(logs: readonly unknown[]) {
       console.log('GameResult event received:', logs);
+      console.log('isFlipping (ref):', isFlippingRef.current);
+      console.log('currentGameId (ref):', currentGameIdRef.current?.toString());
+
       logs.forEach((log: unknown) => {
         const typedLog = log as { args: { player: string; gameId: bigint; result: number; won: boolean; payout: bigint } };
         const { player, gameId, result, won, payout } = typedLog.args;
 
-        console.log('Processing GameResult:', { player, gameId: gameId?.toString(), result, won, payout: payout?.toString() });
-        console.log('Current state:', { currentGameId: currentGameId?.toString(), address });
+        console.log('Processing GameResult:', {
+          player,
+          gameId: gameId?.toString(),
+          result,
+          won,
+          payout: payout?.toString(),
+          isCurrentlyFlipping: isFlippingRef.current,
+          storedGameId: currentGameIdRef.current?.toString()
+        });
 
         // Only process if it's our game - check player address match
         if (player?.toLowerCase() === address?.toLowerCase()) {
-          // Also match gameId if we have it, but don't require it
-          if (currentGameId === null || gameId === currentGameId) {
+          // Check if this is the game we're waiting for
+          const isOurGame = currentGameIdRef.current === null || gameId === currentGameIdRef.current;
+          console.log('Is our game:', isOurGame);
+
+          if (isOurGame && isFlippingRef.current) {
             const resultSide = result === 0 ? 'Heads' : 'Tails';
 
             if (won) {
@@ -187,7 +213,7 @@ export function CoinFlip({ onGameComplete }: CoinFlipProps) {
         const typedLog = log as { args: { player: string; gameId: bigint } };
         const { player, gameId } = typedLog.args;
 
-        if (player?.toLowerCase() === address?.toLowerCase() && isFlipping) {
+        if (player?.toLowerCase() === address?.toLowerCase() && isFlippingRef.current) {
           console.log('Bet placed! Game ID:', gameId.toString());
           setCurrentGameId(gameId);
         }

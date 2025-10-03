@@ -17,8 +17,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
+    console.log('ThemeProvider mounted');
     // Read from localStorage
     const savedTheme = localStorage.getItem('theme') as Theme;
+    console.log('Saved theme from localStorage:', savedTheme);
     if (savedTheme) {
       setTheme(savedTheme);
       if (savedTheme === 'dark') {
@@ -27,6 +29,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         document.documentElement.classList.remove('dark');
       }
     } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      console.log('Using system dark mode preference');
       setTheme('dark');
       document.documentElement.classList.add('dark');
     }
@@ -35,17 +38,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
 
+    console.log('Theme changed to:', theme);
     // Save to localStorage and update DOM
     localStorage.setItem('theme', theme);
     if (theme === 'dark') {
+      console.log('Adding dark class to document');
       document.documentElement.classList.add('dark');
     } else {
+      console.log('Removing dark class from document');
       document.documentElement.classList.remove('dark');
     }
   }, [theme, mounted]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    console.log('toggleTheme called. Current theme:', theme);
+    setTheme(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light';
+      console.log('Setting new theme:', newTheme);
+      return newTheme;
+    });
   };
 
   return (

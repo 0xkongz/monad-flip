@@ -5,14 +5,20 @@ import { useTheme } from '@/contexts/ThemeContext';
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
 
+  const handleClick = () => {
+    console.log('Theme toggle clicked. Current theme:', theme);
+    toggleTheme();
+    console.log('Toggle function called');
+  };
+
   return (
     <button
-      onClick={toggleTheme}
+      onClick={handleClick}
       className="p-2.5 rounded-xl bg-white/10 dark:bg-gray-800/50 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-all duration-200 shadow-sm"
       aria-label="Toggle theme"
     >
       {theme === 'light' ? (
-        <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
       ) : (
