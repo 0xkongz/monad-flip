@@ -1,61 +1,71 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useBalance } from 'wagmi';
 import { formatEther } from 'viem';
 import { COIN_FLIP_ADDRESS } from '../config/contract';
 
 export function Statistics() {
-  // Get contract balance as a proxy for total volume
-  const { data: contractBalance } = useBalance({
+  // Get contract balance with auto-refresh every 10 seconds
+  const { data: contractBalance, refetch } = useBalance({
     address: COIN_FLIP_ADDRESS,
   });
+
+  // Auto-refresh statistics every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch();
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-6xl">
       <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Platform Statistics</h3>
-        <p className="text-gray-600">Real-time stats from the Monad blockchain</p>
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Platform Statistics</h3>
+        <p className="text-gray-600 dark:text-gray-300">Real-time stats from the Monad blockchain</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-3xl p-8 border border-purple-200/50 shadow-sm">
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-3xl p-8 border border-purple-200/50 dark:border-purple-700/50 shadow-sm">
           <div className="flex items-center justify-center mb-4">
             <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center">
               <span className="text-3xl">💰</span>
             </div>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">Contract Balance</p>
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Contract Balance</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
               {contractBalance ? parseFloat(formatEther(contractBalance.value)).toFixed(2) : '0.00'}
             </p>
-            <p className="text-sm text-gray-500 mt-1">MON</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">MON</p>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-200/50 shadow-sm">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-3xl p-8 border border-green-200/50 dark:border-green-700/50 shadow-sm">
           <div className="flex items-center justify-center mb-4">
             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center">
               <span className="text-3xl">🎲</span>
             </div>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">Win Rate</p>
-            <p className="text-3xl font-bold text-gray-900">~50%</p>
-            <p className="text-sm text-gray-500 mt-1">Provably Fair</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Win Rate</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">~50%</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Provably Fair</p>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-3xl p-8 border border-orange-200/50 shadow-sm">
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-3xl p-8 border border-orange-200/50 dark:border-orange-700/50 shadow-sm">
           <div className="flex items-center justify-center mb-4">
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center">
               <span className="text-3xl">⚡</span>
             </div>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">Payout Rate</p>
-            <p className="text-3xl font-bold text-gray-900">1.9x</p>
-            <p className="text-sm text-gray-500 mt-1">On Win</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Payout Rate</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">1.9x</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">On Win</p>
           </div>
         </div>
       </div>
